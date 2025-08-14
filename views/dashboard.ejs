@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Energy Dashboard</title>
+
+  <!-- Flatpickr CSS for the calendar input -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
+  />
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css"
+  />
+
+  <style>
+    /* Reset & base */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    header {
+      background: #fff;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    header h1 { font-size: 1.5rem; }
+    header form button {
+      background: #e53935;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    /* Controls Section */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem 2rem;
+      background: white;
+      border-bottom: 1px solid #e0e0e0;
+      flex-wrap: wrap;
+    }
+    .btn {
+      background: #1976d2;
+      color: white;
+      border: none;
+      padding: 0.5rem 0.75rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #155a9c; }
+    .btn.active { background: #0d3c6e; }
+
+    #relative-controls button { font-size: 0.9rem; }
+    #rangePicker {
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      width: 220px;
+      font-size: 0.95rem;
+      display: none;
+    }
+
+    /* Chart Container */
+    #chart-container {
+      flex: 1;
+      padding: 1rem 2rem;
+      background: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #sensorChart {
+      width: 100%;
+      /*max-width: 1000px;*/
+      height: 600px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Welcome, <%= user.username %> (<%= user.role %>)</h1>
+    <form method="POST" action="/logout">
+      <button type="submit">Logout</button>
+    </form>
+  </header>
+
+  <div class="controls">
+    <!-- Mode toggles -->
+    <button id="btn-relative" class="btn active">Relative</button>
+    <button id="btn-absolute" class="btn">Calendar</button>
+
+    <!-- Relative-range quick buttons -->
+    <div id="relative-controls">
+      <button class="btn" data-range="-5m">5 min</button>
+      <button class="btn" data-range="-15m">15 min</button>
+      <button class="btn" data-range="-30m">30 min</button>
+      <button class="btn" data-range="-1h">1 hour</button>
+      <button class="btn" data-range="-6h">6 hours</button>
+      <button class="btn" data-range="-12h">12 hours</button>
+      <button class="btn" data-range="-1d">1 day</button>
+    </div>
+
+    <!-- Flatpickr date-range input -->
+    <input
+      id="rangePicker"
+      type="text"
+      placeholder="Select date & time range"
+      readonly
+    />
+  </div>
+
+  <div id="chart-container">
+    <canvas id="sensorChart"></canvas>
+  </div>
+
+  <!-- Flatpickr & Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    // Elements
+    const btnRel     = document.getElementById('btn-relative');
+    const btnAbs     = document.getElementById('btn-absolute');
+    const relCtrls   = document.getElementById('relative-controls');
+    const rangeInput = document.getElementById('rangePicker');
+    let currentRange = '-1h';
+    let chart;
+
+    // Toggle Modes
+    btnRel.onclick = () => {
+      btnRel.classList.add('active');
+      btnAbs.classList.remove('active');
+      relCtrls.style.display = 'flex';
+      rangeInput.style.display = 'none';
+      loadAndRender();
+    };
+    btnAbs.onclick = () => {
+      btnRel.classList.remove('active');
+      btnAbs.classList.add('active');
+      relCtrls.style.display = 'none';
+      rangeInput.style.display = 'inline-block';
+    };
+
+    // Quick-range Buttons
+    relCtrls.querySelectorAll('[data-range]').forEach(btn => {
+      btn.onclick = () => {
+        currentRange = btn.dataset.range;
+        relCtrls.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        loadAndRender();
+      };
+    });
+
+    // Initialize Flatpickr for range selection
+    flatpickr(rangeInput, {
+      mode: 'range',
+      enableTime: true,
+      dateFormat: 'Y-m-d H:i',
+      onClose: function(selectedDates) {
+        if (selectedDates.length === 2) {
+          const [start, stop] = selectedDates;
+          loadAndRender({
+            start: start.toISOString(),
+            stop:  stop.toISOString()
+          });
+        }
+      }
+    });
+
+    // Fetch & Render Chart
+    async function loadAndRender({ start, stop } = {}) {
+      let url = `/api/sensors?limit=5000`;
+      if (start && stop) {
+        url += `&start=${encodeURIComponent(start)}&stop=${encodeURIComponent(stop)}`;
+      } else {
+        url += `&range=${currentRange}`;
+      }
+
+      const res = await fetch(url);
+      const { readings } = await res.json();
+      const labels = readings.map(r => new Date(r.timestamp).toLocaleString());
+      const data   = readings.map(r => r.value);
+
+      if (chart) {
+        chart.data.labels           = labels;
+        chart.data.datasets[0].data = data;
+        chart.update();
+      } else {
+        const ctx = document.getElementById('sensorChart').getContext('2d');
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Energy Meter Value',
+              data,
+              borderColor: '#1e88e5',
+              backgroundColor: 'rgba(30,136,229,0.2)',
+              fill: true,
+              tension: 0.3
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                title: { display: true, text: 'Time' }
+              },
+              y: {
+                title: { display: true, text: 'Value' }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // Initial load
+    loadAndRender();
+  </script>
+</body>
+</html>

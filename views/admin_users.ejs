@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin – Manage Users</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; }
+    form input, form select, form button { margin-right: 0.5rem; padding: 0.4rem; }
+    .error { color: red; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Manage Users</h1>
+    <p><a href="/dashboard">← Back to Dashboard</a></p>
+  </header>
+
+  <% if (error) { %>
+    <p class="error"><%= error %></p>
+  <% } %>
+
+  <h2>Existing Users</h2>
+  <table>
+    <tr>
+      <th>ID</th>
+      <th>Username</th>
+      <th>Role</th>
+      <th>Organization</th>
+    </tr>
+    <% users.forEach(u => { %>
+      <tr>
+        <td><%= u.id %></td>
+        <td><%= u.username %></td>
+        <td><%= u.role %></td>
+        <td><%= u.organization %></td>
+      </tr>
+    <% }) %>
+  </table>
+
+  <h2>Create New User</h2>
+  <form method="POST" action="/admin/users">
+    <input       name="username"    placeholder="Username"    required />
+    <input       name="password"    type="password"        placeholder="Password" required />
+    <select      name="role">
+      <option value="client">Client</option>
+      <option value="admin">Admin</option>
+    </select>
+    <input       name="organization" placeholder="Organization" required />
+    <button type="submit">Create</button>
+  </form>
+</body>
+</html>
