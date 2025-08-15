@@ -1,7 +1,7 @@
 // routes/admin.js
 const express              = require('express');
 const bcrypt               = require('bcrypt');
-const db                   = require('../db');
+const db                   = require('../scripts/db');
 const { ensureAuth, ensureAdmin } = require('../middleware/auth');
 const { validateUserCreation } = require('../middleware/validation');
 const logger               = require('../utils/logger');

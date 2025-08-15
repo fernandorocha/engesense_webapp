@@ -120,7 +120,6 @@ Visit `http://localhost:3100` and log in with:
 
 ```
 ├── app.js                 # Main application entry point
-├── db.js                  # SQLite database setup
 ├── package.json
 ├── .env.example          # Environment template
 ├── middleware/
@@ -131,6 +130,8 @@ Visit `http://localhost:3100` and log in with:
 │   ├── admin.js          # Admin user management
 │   ├── sensors.js        # Sensor data API
 │   └── export.js         # Data export functionality
+├── scripts/
+│   └── db.js             # SQLite database setup and initialization
 ├── utils/
 │   ├── config.js         # Configuration management
 │   ├── logger.js         # Logging utility

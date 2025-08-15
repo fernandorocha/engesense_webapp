@@ -1,7 +1,7 @@
 // routes/auth.js
 const express = require('express');
 const bcrypt  = require('bcrypt');
-const db      = require('../db');
+const db      = require('../scripts/db');
 const { validateLogin } = require('../middleware/validation');
 const logger  = require('../utils/logger');
 const router  = express.Router();

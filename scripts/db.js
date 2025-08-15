@@ -2,7 +2,7 @@
 require('dotenv').config();
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt   = require('bcrypt');
-const logger   = require('./utils/logger');
+const logger   = require('../utils/logger');
 
 const db = new sqlite3.Database(process.env.DB_FILE);
 
@@ -10,10 +10,11 @@ db.serialize(() => {
   // Create users table
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
-      id       INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE,
-      password TEXT,
-      role     TEXT CHECK(role IN ('admin','client')) NOT NULL
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      username     TEXT UNIQUE,
+      password     TEXT,
+      role         TEXT CHECK(role IN ('admin','client')) NOT NULL,
+      organization TEXT NOT NULL DEFAULT 'engesense'
     )
   `, (err) => {
     if (err) {
@@ -33,7 +34,7 @@ db.serialize(() => {
     if (!row) {
       const hash = bcrypt.hashSync('admin', 10);
       db.run(
-        `INSERT INTO users (username, password, role) VALUES (?, ?, 'admin')`,
+        `INSERT INTO users (username, password, role, organization) VALUES (?, ?, 'admin', 'engesense')`,
         ['admin', hash],
         err => { 
           if (err) {
