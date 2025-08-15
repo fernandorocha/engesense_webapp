@@ -1,12 +1,16 @@
 {
   "name": "engensense_webapp",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Sensor data management web application using InfluxDB and Express.js",
+  "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node app.js",
+    "dev": "NODE_ENV=development LOG_LEVEL=debug node app.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "npx eslint . --ext .js --ignore-path .gitignore || echo 'ESLint not configured'",
+    "check-syntax": "find . -name '*.js' -not -path './node_modules/*' -exec node -c {} \\;"
   },
-  "keywords": [],
+  "keywords": ["sensor", "influxdb", "express", "monitoring"],
   "author": "",
   "license": "ISC",
   "type": "commonjs",

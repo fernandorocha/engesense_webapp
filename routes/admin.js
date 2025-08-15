@@ -3,6 +3,8 @@ const express              = require('express');
 const bcrypt               = require('bcrypt');
 const db                   = require('../db');
 const { ensureAuth, ensureAdmin } = require('../middleware/auth');
+const { validateUserCreation } = require('../middleware/validation');
+const logger               = require('../utils/logger');
 const router               = express.Router();
 
 // GET /admin/users — list users
@@ -14,7 +16,13 @@ router.get(
     db.all(
       `SELECT id, username, role, organization FROM users`,
       (err, rows) => {
-        if (err) throw err;
+        if (err) {
+          logger.error('Failed to fetch users list', { error: err.message });
+          return res.status(500).render('admin_users', { 
+            users: [], 
+            error: 'Failed to load users' 
+          });
+        }
         res.render('admin_users', { users: rows, error: null });
       }
     );
@@ -26,15 +34,23 @@ router.post(
   '/admin/users',
   ensureAuth,
   ensureAdmin,
+  validateUserCreation,
   (req, res) => {
     const { username, password, role, organization } = req.body;
     const hash = bcrypt.hashSync(password, 10);
+    
     db.run(
       `INSERT INTO users (username, password, role, organization)
        VALUES (?, ?, ?, ?)`,
       [username, hash, role, organization],
       err => {
         if (err) {
+          logger.error('Failed to create user', { 
+            error: err.message, 
+            username,
+            role
+          });
+          
           return db.all(
             `SELECT id, username, role, organization FROM users`,
             (_, rows) =>
@@ -44,6 +60,8 @@ router.post(
               })
           );
         }
+        
+        logger.info('User created successfully', { username, role });
         res.redirect('/admin/users');
       }
     );
