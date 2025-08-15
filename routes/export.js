@@ -11,11 +11,22 @@ router.get('/export', ensureAuth, validateSensorQuery, async (req, res) => {
   const { range, start, stop, limit = '5000', buckets, measurements } = req.query;
 
   try {
+    const organization = req.session.user.organization;
+    
+    if (!organization) {
+      return res.status(400).send('User organization not found');
+    }
+    
     // Parse buckets and measurements from query parameters
     const bucketList = buckets ? buckets.split(',').map(b => b.trim()).filter(b => b) : [];
     const measurementList = measurements ? measurements.split(',').map(m => m.trim()).filter(m => m) : [];
     
+    if (bucketList.length === 0) {
+      return res.status(400).send('At least one bucket must be specified');
+    }
+    
     const readings = await querySensorReadings({
+      organization,
       range,
       start,
       stop,
@@ -25,7 +36,9 @@ router.get('/export', ensureAuth, validateSensorQuery, async (req, res) => {
     });
     
     if (readings.length === 0) {
-      logger.warn('No data found for export', { range, start, stop, buckets: bucketList, measurements: measurementList });
+      logger.warn('No data found for export', { 
+        range, start, stop, buckets: bucketList, measurements: measurementList, organization 
+      });
       return res.status(404).send('No sensor data found for the specified parameters.');
     }
     
@@ -49,7 +62,8 @@ router.get('/export', ensureAuth, validateSensorQuery, async (req, res) => {
       start,
       stop,
       buckets: bucketList,
-      measurements: measurementList
+      measurements: measurementList,
+      organization
     });
     
   } catch (err) {
@@ -60,7 +74,8 @@ router.get('/export', ensureAuth, validateSensorQuery, async (req, res) => {
       stop,
       limit,
       buckets,
-      measurements
+      measurements,
+      organization: req.session.user.organization
     });
     res.status(500).send('Error generating CSV export.');
   }
