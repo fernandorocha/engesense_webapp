@@ -93,14 +93,11 @@ async function getMeasurements(buckets) {
           }
         },
         error(err) {
-          logger.error('InfluxDB measurements query error - using mock data', { 
+          logger.error('InfluxDB measurements query error', { 
             error: err.message,
             query: flux.trim()
           });
-          
-          // Return mock measurements for demonstration
-          const mockMeasurements = ['home_pt', 'temperature', 'humidity', 'pressure'];
-          resolve(mockMeasurements);
+          reject(err);
         },
         complete() {
           logger.info('Measurements query completed', { 
@@ -112,10 +109,8 @@ async function getMeasurements(buckets) {
       });
     });
   } catch (err) {
-    logger.warn('InfluxDB connection failed, using mock measurements', { error: err.message });
-    // Return mock measurements for demonstration
-    const mockMeasurements = ['home_pt', 'temperature', 'humidity', 'pressure'];
-    return mockMeasurements;
+    logger.error('InfluxDB connection failed', { error: err.message });
+    throw err;
   }
 }
 
@@ -188,46 +183,12 @@ async function querySensorReadings({ range, start, stop, limit = 1000, buckets, 
             }
           },
           error(err) {
-            logger.error('InfluxDB query error - using mock data', { 
+            logger.error('InfluxDB query error', { 
               error: err.message,
               query: flux.trim(),
               bucket
             });
-            
-            // Generate mock data for demonstration
-            const now = new Date();
-            const pointsPerMeasurement = Math.ceil(50 / queryMeasurements.length);
-            
-            queryMeasurements.forEach(measurement => {
-              for (let i = 0; i < pointsPerMeasurement; i++) {
-                const timestamp = new Date(now.getTime() - (pointsPerMeasurement - i) * 60000);
-                let value;
-                
-                // Generate different types of mock data based on measurement name
-                switch (measurement) {
-                  case 'temperature':
-                    value = 20 + Math.sin(i * 0.3) * 5 + Math.random() * 2;
-                    break;
-                  case 'humidity':
-                    value = 50 + Math.cos(i * 0.2) * 20 + Math.random() * 5;
-                    break;
-                  case 'pressure':
-                    value = 1013 + Math.sin(i * 0.1) * 10 + Math.random() * 3;
-                    break;
-                  default: // home_pt and others
-                    value = 100 + Math.sin(i * 0.5) * 20 + Math.random() * 10;
-                }
-                
-                readings.push({
-                  timestamp: timestamp.toISOString(),
-                  value: Math.round(value * 100) / 100,
-                  measurement: measurement,
-                  bucket: bucket
-                });
-              }
-            });
-            
-            resolve();
+            reject(err);
           },
           complete() {
             logger.debug('Bucket query completed', { 
@@ -240,39 +201,8 @@ async function querySensorReadings({ range, start, stop, limit = 1000, buckets, 
       });
     }
   } catch (err) {
-    logger.warn('InfluxDB connection failed, generating mock data', { error: err.message });
-    
-    // Generate comprehensive mock data when InfluxDB is unavailable
-    const now = new Date();
-    const pointsPerMeasurement = Math.ceil(100 / queryMeasurements.length);
-    
-    queryMeasurements.forEach(measurement => {
-      for (let i = 0; i < pointsPerMeasurement; i++) {
-        const timestamp = new Date(now.getTime() - (pointsPerMeasurement - i) * 60000);
-        let value;
-        
-        switch (measurement) {
-          case 'temperature':
-            value = 20 + Math.sin(i * 0.3) * 5 + Math.random() * 2;
-            break;
-          case 'humidity':
-            value = 50 + Math.cos(i * 0.2) * 20 + Math.random() * 5;
-            break;
-          case 'pressure':
-            value = 1013 + Math.sin(i * 0.1) * 10 + Math.random() * 3;
-            break;
-          default: // home_pt and others
-            value = 100 + Math.sin(i * 0.5) * 20 + Math.random() * 10;
-        }
-        
-        readings.push({
-          timestamp: timestamp.toISOString(),
-          value: Math.round(value * 100) / 100,
-          measurement: measurement,
-          bucket: queryBuckets[0]
-        });
-      }
-    });
+    logger.error('InfluxDB connection failed', { error: err.message });
+    throw err;
   }
 
   // Sort combined results by timestamp and apply overall limit
