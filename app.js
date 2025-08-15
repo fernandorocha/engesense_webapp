@@ -7,6 +7,7 @@ const db            = require('./db');
 const authRoutes    = require('./routes/auth');
 const adminRoutes   = require('./routes/admin');
 const sensorRoutes  = require('./routes/sensors');
+const exportRoute = require('./routes/export');
 const { ensureAuth }= require('./middleware/auth');
 
 const app = express();
@@ -38,6 +39,7 @@ app.use((req, res, next) => {
 app.use(authRoutes);
 app.use(adminRoutes);
 app.use(sensorRoutes);
+app.use('/', exportRoute);
 
 // Protected dashboard
 app.get('/dashboard', ensureAuth, (req, res) => {

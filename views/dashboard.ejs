@@ -125,6 +125,16 @@
       placeholder="Select date & time range"
       readonly
     />
+
+    <!-- CSV Export form -->
+    <form method="GET" action="/export" class="export-form">
+      <input type="hidden" name="range" id="csvRange" value="">
+      <input type="hidden" name="start" id="csvStart" value="">
+      <input type="hidden" name="stop" id="csvStop" value="">
+      <button type="submit" class="btn">Download CSV</button>
+    </form>
+   </div>
+
   </div>
 
   <div id="chart-container">
@@ -140,7 +150,11 @@
     const btnRel     = document.getElementById('btn-relative');
     const btnAbs     = document.getElementById('btn-absolute');
     const relCtrls   = document.getElementById('relative-controls');
+    const csvRange = document.getElementById('csvRange');
+    const csvStart = document.getElementById('csvStart');
+    const csvStop  = document.getElementById('csvStop');
     const rangeInput = document.getElementById('rangePicker');
+
     let currentRange = '-1h';
     let chart;
 
@@ -165,6 +179,9 @@
         currentRange = btn.dataset.range;
         relCtrls.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+        csvRange.value = btn.dataset.range;
+        csvStart.value = '';
+        csvStop.value = '';
         loadAndRender();
       };
     });
@@ -177,6 +194,10 @@
       onClose: function(selectedDates) {
         if (selectedDates.length === 2) {
           const [start, stop] = selectedDates;
+          csvStart.value = start.toISOString();
+          csvStop.value  = stop.toISOString();
+          csvRange.value = '';
+
           loadAndRender({
             start: start.toISOString(),
             stop:  stop.toISOString()
@@ -190,8 +211,14 @@
       let url = `/api/sensors?limit=5000`;
       if (start && stop) {
         url += `&start=${encodeURIComponent(start)}&stop=${encodeURIComponent(stop)}`;
+        csvStart.value = start.toISOString();
+        csvStop.value  = stop.toISOString();
+        csvRange.value = '';
       } else {
         url += `&range=${currentRange}`;
+        csvRange.value = currentRange;
+        csvStart.value = '';
+        csvStop.value = '';
       }
 
       const res = await fetch(url);

@@ -8,6 +8,28 @@ const client   = new InfluxDB({
 });
 const queryApi = client.getQueryApi(process.env.INFLUX_ORG);
 
+async function querySensorData(sensorId, start, end) {
+  const fluxQuery = `
+    from(bucket: "engesense")
+      |> range(start: ${start}, stop: ${end})
+      |> filter(fn: (r) => r._measurement == "${sensorId}")
+      |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+  `;
+
+  const rows = [];
+  await queryApi.queryRows(fluxQuery, {
+    next(row, tableMeta) {
+      rows.push(tableMeta.toObject(row));
+    },
+    error(error) {
+      throw error;
+    },
+    complete() {}
+  });
+
+  return rows;
+}
+
 async function querySensorReadings({ range, start, stop, limit = 5000 }) {
   if (!process.env.INFLUX_BUCKET) {
     throw new Error('INFLUX_BUCKET not defined in .env');
