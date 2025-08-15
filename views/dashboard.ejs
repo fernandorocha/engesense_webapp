@@ -91,6 +91,32 @@
       /*max-width: 1000px;*/
       height: 600px;
     }
+
+    /* Multi-select dropdowns */
+    .dropdown-section {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-right: 1rem;
+    }
+    .dropdown-section label {
+      font-weight: 500;
+      min-width: fit-content;
+    }
+    .multi-select {
+      min-width: 200px;
+      max-width: 300px;
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      background: white;
+    }
+    .multi-select:focus {
+      outline: none;
+      border-color: #1976d2;
+      box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+    }
   </style>
 </head>
 <body>
@@ -103,6 +129,21 @@
   </header>
 
   <div class="controls">
+    <!-- Bucket and Measurement Selection -->
+    <div class="dropdown-section">
+      <label for="bucketsSelect">Buckets:</label>
+      <select id="bucketsSelect" class="multi-select" multiple>
+        <option value="">Loading buckets...</option>
+      </select>
+    </div>
+    
+    <div class="dropdown-section">
+      <label for="measurementsSelect">Measurements:</label>
+      <select id="measurementsSelect" class="multi-select" multiple>
+        <option value="">Select buckets first</option>
+      </select>
+    </div>
+
     <!-- Mode toggles -->
     <button id="btn-relative" class="btn active">Relative</button>
     <button id="btn-absolute" class="btn">Calendar</button>
@@ -131,6 +172,8 @@
       <input type="hidden" name="range" id="csvRange" value="">
       <input type="hidden" name="start" id="csvStart" value="">
       <input type="hidden" name="stop" id="csvStop" value="">
+      <input type="hidden" name="buckets" id="csvBuckets" value="">
+      <input type="hidden" name="measurements" id="csvMeasurements" value="">
       <button type="submit" class="btn">Download CSV</button>
     </form>
    </div>
@@ -154,9 +197,106 @@
     const csvStart = document.getElementById('csvStart');
     const csvStop  = document.getElementById('csvStop');
     const rangeInput = document.getElementById('rangePicker');
+    const bucketsSelect = document.getElementById('bucketsSelect');
+    const measurementsSelect = document.getElementById('measurementsSelect');
 
     let currentRange = '-1h';
     let chart;
+    let selectedBuckets = [];
+    let selectedMeasurements = [];
+
+    // Load available buckets on page load
+    async function loadBuckets() {
+      try {
+        const res = await fetch('/api/buckets');
+        const { buckets } = await res.json();
+        
+        bucketsSelect.innerHTML = '';
+        if (buckets.length === 0) {
+          bucketsSelect.innerHTML = '<option value="">No buckets available</option>';
+          return;
+        }
+        
+        buckets.forEach(bucket => {
+          const option = document.createElement('option');
+          option.value = bucket;
+          option.textContent = bucket;
+          bucketsSelect.appendChild(option);
+        });
+        
+        // Auto-select first bucket if available
+        if (buckets.length > 0) {
+          bucketsSelect.options[0].selected = true;
+          selectedBuckets = [buckets[0]];
+          await loadMeasurements();
+        }
+      } catch (err) {
+        console.error('Failed to load buckets:', err);
+        bucketsSelect.innerHTML = '<option value="">Error loading buckets</option>';
+      }
+    }
+
+    // Load measurements for selected buckets
+    async function loadMeasurements() {
+      if (selectedBuckets.length === 0) {
+        measurementsSelect.innerHTML = '<option value="">Select buckets first</option>';
+        return;
+      }
+      
+      try {
+        const bucketsParam = selectedBuckets.join(',');
+        const res = await fetch(`/api/measurements?buckets=${encodeURIComponent(bucketsParam)}`);
+        const { measurements } = await res.json();
+        
+        measurementsSelect.innerHTML = '';
+        if (measurements.length === 0) {
+          measurementsSelect.innerHTML = '<option value="">No measurements available</option>';
+          return;
+        }
+        
+        measurements.forEach(measurement => {
+          const option = document.createElement('option');
+          option.value = measurement;
+          option.textContent = measurement;
+          measurementsSelect.appendChild(option);
+        });
+        
+        // Auto-select first measurement if available
+        if (measurements.length > 0) {
+          measurementsSelect.options[0].selected = true;
+          selectedMeasurements = [measurements[0]];
+          loadAndRender();
+        }
+      } catch (err) {
+        console.error('Failed to load measurements:', err);
+        measurementsSelect.innerHTML = '<option value="">Error loading measurements</option>';
+      }
+    }
+
+    // Handle bucket selection changes
+    bucketsSelect.addEventListener('change', () => {
+      selectedBuckets = Array.from(bucketsSelect.selectedOptions).map(option => option.value);
+      selectedMeasurements = []; // Reset measurements when buckets change
+      updateCsvFields();
+      loadMeasurements();
+    });
+
+    // Handle measurement selection changes
+    measurementsSelect.addEventListener('change', () => {
+      selectedMeasurements = Array.from(measurementsSelect.selectedOptions).map(option => option.value);
+      updateCsvFields();
+      if (selectedMeasurements.length > 0) {
+        loadAndRender();
+      }
+    });
+
+    // Update CSV form fields with current selections
+    function updateCsvFields() {
+      const csvBuckets = document.getElementById('csvBuckets');
+      const csvMeasurements = document.getElementById('csvMeasurements');
+      if (csvBuckets) csvBuckets.value = selectedBuckets.join(',');
+      if (csvMeasurements) csvMeasurements.value = selectedMeasurements.join(',');
+    }
 
     // Toggle Modes
     btnRel.onclick = () => {
@@ -208,7 +348,14 @@
 
     // Fetch & Render Chart
     async function loadAndRender({ start, stop } = {}) {
+      if (selectedBuckets.length === 0 || selectedMeasurements.length === 0) {
+        return;
+      }
+      
       let url = `/api/sensors?limit=5000`;
+      url += `&buckets=${encodeURIComponent(selectedBuckets.join(','))}`;
+      url += `&measurements=${encodeURIComponent(selectedMeasurements.join(','))}`;
+      
       if (start && stop) {
         url += `&start=${encodeURIComponent(start)}&stop=${encodeURIComponent(stop)}`;
         csvStart.value = start.toISOString();
@@ -221,48 +368,95 @@
         csvStop.value = '';
       }
 
-      const res = await fetch(url);
-      const { readings } = await res.json();
-      const labels = readings.map(r => new Date(r.timestamp).toLocaleString());
-      const data   = readings.map(r => r.value);
+      updateCsvFields();
 
-      if (chart) {
-        chart.data.labels           = labels;
-        chart.data.datasets[0].data = data;
-        chart.update();
-      } else {
-        const ctx = document.getElementById('sensorChart').getContext('2d');
-        chart = new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels,
-            datasets: [{
-              label: 'Energy Meter Value',
-              data,
-              borderColor: '#1e88e5',
-              backgroundColor: 'rgba(30,136,229,0.2)',
-              fill: true,
-              tension: 0.3
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-              x: {
-                title: { display: true, text: 'Time' }
+      try {
+        const res = await fetch(url);
+        const { readings } = await res.json();
+        
+        // Group readings by measurement
+        const datasetsByMeasurement = {};
+        readings.forEach(reading => {
+          const key = reading.measurement || 'Unknown';
+          if (!datasetsByMeasurement[key]) {
+            datasetsByMeasurement[key] = {
+              timestamps: [],
+              values: []
+            };
+          }
+          datasetsByMeasurement[key].timestamps.push(reading.timestamp);
+          datasetsByMeasurement[key].values.push(reading.value);
+        });
+
+        // Create datasets for chart
+        const datasets = Object.keys(datasetsByMeasurement).map((measurement, index) => {
+          const colors = [
+            '#1e88e5', '#e53935', '#43a047', '#fb8c00', 
+            '#8e24aa', '#00acc1', '#fdd835', '#f4511e'
+          ];
+          const color = colors[index % colors.length];
+          
+          // Convert hex to rgba for background
+          const hex = color.slice(1);
+          const r = parseInt(hex.slice(0, 2), 16);
+          const g = parseInt(hex.slice(2, 4), 16);
+          const b = parseInt(hex.slice(4, 6), 16);
+          const backgroundColor = `rgba(${r}, ${g}, ${b}, 0.2)`;
+          
+          return {
+            label: measurement,
+            data: datasetsByMeasurement[measurement].values,
+            borderColor: color,
+            backgroundColor: backgroundColor,
+            fill: false,
+            tension: 0.3
+          };
+        });
+
+        // Use timestamps from first dataset for labels (assuming all have similar timestamps)
+        const labels = Object.keys(datasetsByMeasurement).length > 0 
+          ? Object.values(datasetsByMeasurement)[0].timestamps.map(t => new Date(t).toLocaleString())
+          : [];
+
+        if (chart) {
+          chart.data.labels = labels;
+          chart.data.datasets = datasets;
+          chart.update();
+        } else {
+          const ctx = document.getElementById('sensorChart').getContext('2d');
+          chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels,
+              datasets
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                x: {
+                  title: { display: true, text: 'Time' }
+                },
+                y: {
+                  title: { display: true, text: 'Value' }
+                }
               },
-              y: {
-                title: { display: true, text: 'Value' }
+              plugins: {
+                legend: {
+                  display: true,
+                  position: 'top'
+                }
               }
             }
-          }
-        });
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load sensor data:', err);
       }
     }
 
     // Initial load
-    loadAndRender();
+    loadBuckets();
   </script>
 </body>
 </html>
