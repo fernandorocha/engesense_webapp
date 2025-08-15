@@ -1,10 +1,8 @@
-// db.js
+// Database initialization script
 require('dotenv').config();
-const sqlite3 = require('sqlite3').verbose();
-const bcrypt   = require('bcrypt');
-const logger   = require('../utils/logger');
-
-const db = new sqlite3.Database(process.env.DB_FILE);
+const bcrypt = require('bcrypt');
+const logger = require('../utils/logger');
+const db     = require('../utils/db');
 
 db.serialize(() => {
   // Create users table
@@ -19,6 +17,7 @@ db.serialize(() => {
   `, (err) => {
     if (err) {
       logger.error('Failed to create users table', { error: err.message });
+      process.exit(1);
     } else {
       logger.info('Users table ready');
     }
@@ -28,7 +27,7 @@ db.serialize(() => {
   db.get(`SELECT 1 FROM users WHERE username = ?`, ['admin'], (err, row) => {
     if (err) {
       logger.error('Failed to check for admin user', { error: err.message });
-      return;
+      process.exit(1);
     }
     
     if (!row) {
@@ -39,15 +38,28 @@ db.serialize(() => {
         err => { 
           if (err) {
             logger.error('Failed to seed admin user', { error: err.message });
+            process.exit(1);
           } else {
             logger.warn('Seeded default admin user (admin/admin) - CHANGE PASSWORD IN PRODUCTION!');
+            closeDatabase();
           }
         }
       );
     } else {
       logger.info('Admin user exists');
+      closeDatabase();
     }
   });
 });
 
-module.exports = db;
+function closeDatabase() {
+  db.close((err) => {
+    if (err) {
+      logger.error('Error closing database', { error: err.message });
+      process.exit(1);
+    } else {
+      logger.info('Database initialization complete');
+      process.exit(0);
+    }
+  });
+}
