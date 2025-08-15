@@ -11,8 +11,6 @@ const logger = require('./logger');
 const REQUIRED_ENV_VARS = [
   'INFLUX_URL',
   'INFLUX_TOKEN', 
-  'INFLUX_ORG',
-  'INFLUX_BUCKET',
   'SESSION_SECRET',
   'DB_FILE'
 ];
@@ -64,9 +62,7 @@ function getConfig() {
     nodeEnv: process.env.NODE_ENV,
     influx: {
       url: process.env.INFLUX_URL,
-      token: process.env.INFLUX_TOKEN,
-      org: process.env.INFLUX_ORG,
-      bucket: process.env.INFLUX_BUCKET
+      token: process.env.INFLUX_TOKEN
     },
     session: {
       secret: process.env.SESSION_SECRET

@@ -30,13 +30,15 @@ router.post('/login', validateLogin, (req, res) => {
     req.session.user = { 
       id: user.id, 
       username: user.username, 
-      role: user.role 
+      role: user.role,
+      organization: user.organization
     };
     
     logger.info('User logged in successfully', { 
       userId: user.id, 
       username: user.username,
-      role: user.role
+      role: user.role,
+      organization: user.organization
     });
     
     res.redirect('/dashboard');

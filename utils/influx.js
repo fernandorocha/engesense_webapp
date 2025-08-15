@@ -3,11 +3,10 @@ require('dotenv').config();
 const { InfluxDB } = require('@influxdata/influxdb-client');
 const logger = require('./logger');
 
-const client   = new InfluxDB({
+const client = new InfluxDB({
   url:   process.env.INFLUX_URL,
   token: process.env.INFLUX_TOKEN
 });
-const queryApi = client.getQueryApi(process.env.INFLUX_ORG);
 
 /**
  * Get available buckets filtered by organization
@@ -15,6 +14,8 @@ const queryApi = client.getQueryApi(process.env.INFLUX_ORG);
  * @returns {Promise<Array>} Array of bucket names
  */
 async function getBuckets(organization) {
+  const queryApi = client.getQueryApi(organization);
+  
   try {
     const flux = `
       import "strings"
@@ -61,13 +62,16 @@ async function getBuckets(organization) {
 
 /**
  * Get available measurements from specified buckets
+ * @param {string} organization - Organization name for InfluxDB connection
  * @param {Array<string>} buckets - Array of bucket names
  * @returns {Promise<Array>} Array of measurement names
  */
-async function getMeasurements(buckets) {
+async function getMeasurements(organization, buckets) {
   if (!buckets || buckets.length === 0) {
     return [];
   }
+
+  const queryApi = client.getQueryApi(organization);
 
   try {
     const bucketList = buckets.map(b => `"${b}"`).join(', ');
@@ -117,22 +121,26 @@ async function getMeasurements(buckets) {
 /**
  * Query sensor readings with flexible time range support
  * @param {Object} params - Query parameters
+ * @param {string} params.organization - Organization name for InfluxDB connection
  * @param {string} [params.range] - Relative time range (e.g., '-1h', '-30m')
  * @param {string} [params.start] - Start time (ISO 8601)
  * @param {string} [params.stop] - Stop time (ISO 8601)
  * @param {number} [params.limit=1000] - Maximum number of readings to return
- * @param {Array<string>} [params.buckets] - Array of bucket names to query
+ * @param {Array<string>} params.buckets - Array of bucket names to query (required)
  * @param {Array<string>} [params.measurements] - Array of measurement names to query
  * @returns {Promise<Array>} Array of sensor readings with measurement info
  */
-async function querySensorReadings({ range, start, stop, limit = 1000, buckets, measurements }) {
-  // Use provided buckets or fall back to default
-  const queryBuckets = buckets && buckets.length > 0 ? buckets : [process.env.INFLUX_BUCKET];
-  const queryMeasurements = measurements && measurements.length > 0 ? measurements : ['home_pt'];
-  
-  if (!queryBuckets[0]) {
-    throw new Error('No buckets specified and INFLUX_BUCKET not defined in .env');
+async function querySensorReadings({ organization, range, start, stop, limit = 1000, buckets, measurements }) {
+  if (!organization) {
+    throw new Error('Organization is required for InfluxDB queries');
   }
+  
+  if (!buckets || buckets.length === 0) {
+    throw new Error('At least one bucket must be specified');
+  }
+  
+  const queryApi = client.getQueryApi(organization);
+  const queryMeasurements = measurements && measurements.length > 0 ? measurements : ['home_pt'];
 
   // Build the correct Flux range clause
   let rangeClause;
@@ -156,16 +164,16 @@ async function querySensorReadings({ range, start, stop, limit = 1000, buckets, 
   
   try {
     // Query each bucket and combine results
-    for (const bucket of queryBuckets) {
+    for (const bucket of buckets) {
       const flux = `
         from(bucket: "${bucket}")
           ${rangeClause}
           |> filter(fn: (r) => ${measurementFilter} and r._field == "value")
           |> sort(columns: ["_time"], desc: false)
-          |> limit(n: ${Math.ceil(limit / queryBuckets.length)})
+          |> limit(n: ${Math.ceil(limit / buckets.length)})
       `;
       
-      logger.debug('Executing Flux query', { query: flux.trim(), bucket });
+      logger.debug('Executing Flux query', { query: flux.trim(), bucket, organization });
 
       await new Promise((resolve, reject) => {
         queryApi.queryRows(flux, {
@@ -186,13 +194,15 @@ async function querySensorReadings({ range, start, stop, limit = 1000, buckets, 
             logger.error('InfluxDB query error', { 
               error: err.message,
               query: flux.trim(),
-              bucket
+              bucket,
+              organization
             });
             reject(err);
           },
           complete() {
             logger.debug('Bucket query completed', { 
               bucket,
+              organization,
               pointsReturned: readings.filter(r => r.bucket === bucket).length
             });
             resolve();
@@ -201,7 +211,7 @@ async function querySensorReadings({ range, start, stop, limit = 1000, buckets, 
       });
     }
   } catch (err) {
-    logger.error('InfluxDB connection failed', { error: err.message });
+    logger.error('InfluxDB connection failed', { error: err.message, organization });
     throw err;
   }
 
@@ -211,8 +221,9 @@ async function querySensorReadings({ range, start, stop, limit = 1000, buckets, 
   
   logger.info('InfluxDB query completed', { 
     pointsReturned: limitedReadings.length,
-    buckets: queryBuckets,
+    buckets: buckets,
     measurements: queryMeasurements,
+    organization,
     limit
   });
   
