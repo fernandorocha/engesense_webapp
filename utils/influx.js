@@ -15,11 +15,12 @@ const queryApi = client.getQueryApi(process.env.INFLUX_ORG);
  * @returns {Promise<Array>} Array of bucket names
  */
 async function getBuckets(organization) {
-  // Mock data for demonstration when InfluxDB is not available
   try {
     const flux = `
+      import "strings"
+      
       buckets()
-        |> filter(fn: (r) => r.name =~ /^${organization}_/ or r.name == "${process.env.INFLUX_BUCKET}")
+        |> filter(fn: (r) => not strings.hasPrefix(v: r.name, prefix: "_"))
         |> keep(columns: ["name"])
     `;
     
@@ -37,18 +38,11 @@ async function getBuckets(organization) {
           }
         },
         error(err) {
-          logger.error('InfluxDB buckets query error - using mock data', { 
+          logger.error('InfluxDB buckets query error', { 
             error: err.message,
             query: flux.trim()
           });
-          
-          // Return mock buckets for demonstration
-          const mockBuckets = [
-            `${organization}_bucket1`,
-            `${organization}_bucket2`,
-            process.env.INFLUX_BUCKET
-          ].filter(Boolean);
-          resolve(mockBuckets);
+          reject(err);
         },
         complete() {
           logger.info('Buckets query completed', { 
@@ -60,14 +54,8 @@ async function getBuckets(organization) {
       });
     });
   } catch (err) {
-    logger.warn('InfluxDB connection failed, using mock buckets', { error: err.message });
-    // Return mock buckets for demonstration  
-    const mockBuckets = [
-      `${organization}_bucket1`,
-      `${organization}_bucket2`,
-      process.env.INFLUX_BUCKET
-    ].filter(Boolean);
-    return mockBuckets;
+    logger.error('InfluxDB connection failed', { error: err.message });
+    throw err;
   }
 }
 
