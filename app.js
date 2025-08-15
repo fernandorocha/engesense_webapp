@@ -39,7 +39,7 @@ app.use((req, res, next) => {
 app.use(authRoutes);
 app.use(adminRoutes);
 app.use(sensorRoutes);
-app.use('/', exportRoute);
+app.use(exportRoute);
 
 // Protected dashboard
 app.get('/dashboard', ensureAuth, (req, res) => {

@@ -1,23 +1,29 @@
 const express = require('express');
+const { querySensorReadings } = require('../utils/influx');
+const { ensureAuth }        = require('../middleware/auth');
 const { Parser } = require('json2csv');
-const router = express.Router();
-const influxService = require('../utils/influx');
 
-router.get('/export', async (req, res) => {
-  const { sensorId, start, end } = req.query;
+const router = express.Router();
+
+router.get('/export', ensureAuth, async (req, res) => {
+  const { range, start, stop, limit = '5000' } = req.query;
 
   try {
-    const data = await influxService.querySensorData(sensorId, start, end);
-
-    if (!data || data.length === 0) {
-      return res.status(404).send('No data found.');
-    }
-
+    const readings = await querySensorReadings({
+      range,
+      start,
+      stop,
+      limit: parseInt(limit, 10)
+    });
+    
+    //res.json({ readings });
+    
     const parser = new Parser();
-    const csv = parser.parse(data);
+    const csv = parser.parse(readings);
 
     res.header('Content-Type', 'text/csv');
-    res.attachment(`sensor_${sensorId}_${start}_${end}.csv`);
+    //res.attachment(`sensor_home_pt_${start}_${stop}.csv`);
+    res.attachment(`sensor_home_pt.csv`);
     res.send(csv);
   } catch (err) {
     console.error('CSV export error:', err);
