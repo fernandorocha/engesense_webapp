@@ -78,7 +78,7 @@ async function getMeasurements(organization, buckets) {
     const flux = `
       import "influxdata/influxdb/schema"
       
-      schema.measurements(bucket: ${buckets.length === 1 ? buckets[0] : bucketList})
+      schema.measurements(bucket: "${buckets.length === 1 ? buckets[0] : bucketList}")
     `;
     
     logger.debug('Executing measurements query', { query: flux.trim(), buckets });
