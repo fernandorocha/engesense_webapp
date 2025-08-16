@@ -247,20 +247,26 @@
         const bucketsParam = selectedBuckets.join(',');
         const res = await fetch(`/api/measurements?buckets=${encodeURIComponent(bucketsParam)}`);
         const { measurements } = await res.json();
-        
+
         measurementsSelect.innerHTML = '';
         if (measurements.length === 0) {
           measurementsSelect.innerHTML = '<option value="">No measurements available</option>';
           return;
         }
-        
+
+        // Show user-friendly label: bucket:measurement -> bucket (measurement)
         measurements.forEach(measurement => {
           const option = document.createElement('option');
           option.value = measurement;
-          option.textContent = measurement;
+          if (measurement.includes(':')) {
+            const [bucket, m] = measurement.split(':', 2);
+            option.textContent = `${bucket} (${m})`;
+          } else {
+            option.textContent = measurement;
+          }
           measurementsSelect.appendChild(option);
         });
-        
+
         // Auto-select first measurement if available
         if (measurements.length > 0) {
           measurementsSelect.options[0].selected = true;
@@ -352,9 +358,9 @@
         return;
       }
       
-      let url = `/api/sensors?limit=5000`;
-      url += `&buckets=${encodeURIComponent(selectedBuckets.join(','))}`;
-      url += `&measurements=${encodeURIComponent(selectedMeasurements.join(','))}`;
+  let url = `/api/sensors?limit=5000`;
+  url += `&buckets=${encodeURIComponent(selectedBuckets.join(','))}`;
+  url += `&measurements=${encodeURIComponent(selectedMeasurements.join(','))}`;
       
       if (start && stop) {
         url += `&start=${encodeURIComponent(start)}&stop=${encodeURIComponent(stop)}`;
@@ -374,7 +380,7 @@
         const res = await fetch(url);
         const { readings } = await res.json();
         
-        // Group readings by measurement
+        // Group readings by measurement (bucket:measurement)
         const datasetsByMeasurement = {};
         readings.forEach(reading => {
           const key = reading.measurement || 'Unknown';
@@ -388,23 +394,26 @@
           datasetsByMeasurement[key].values.push(reading.value);
         });
 
-        // Create datasets for chart
+        // Create datasets for chart, show label as bucket (measurement)
         const datasets = Object.keys(datasetsByMeasurement).map((measurement, index) => {
           const colors = [
             '#1e88e5', '#e53935', '#43a047', '#fb8c00', 
             '#8e24aa', '#00acc1', '#fdd835', '#f4511e'
           ];
           const color = colors[index % colors.length];
-          
           // Convert hex to rgba for background
           const hex = color.slice(1);
           const r = parseInt(hex.slice(0, 2), 16);
           const g = parseInt(hex.slice(2, 4), 16);
           const b = parseInt(hex.slice(4, 6), 16);
           const backgroundColor = `rgba(${r}, ${g}, ${b}, 0.2)`;
-          
+          let label = measurement;
+          if (measurement.includes(':')) {
+            const [bucket, m] = measurement.split(':', 2);
+            label = `${bucket} (${m})`;
+          }
           return {
-            label: measurement,
+            label: label,
             data: datasetsByMeasurement[measurement].values,
             borderColor: color,
             backgroundColor: backgroundColor,

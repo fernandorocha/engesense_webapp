@@ -72,46 +72,47 @@ async function getMeasurements(organization, buckets) {
   }
 
   const queryApi = client.getQueryApi(organization);
-
+  const measurementsSet = new Set();
   try {
-    const bucketList = buckets.map(b => `"${b}"`).join(', ');
-    const flux = `
-      import "influxdata/influxdb/schema"
-      
-      schema.measurements(bucket: "${buckets.length === 1 ? buckets[0] : bucketList}")
-    `;
-    
-    logger.debug('Executing measurements query', { query: flux.trim(), buckets });
-
-    const measurements = [];
-    return new Promise((resolve, reject) => {
-      queryApi.queryRows(flux, {
-        next(row, tableMeta) {
-          try {
-            const o = tableMeta.toObject(row);
-            if (o._value && !measurements.includes(o._value)) {
-              measurements.push(o._value);
+    for (const bucket of buckets) {
+      const flux = `
+        import "influxdata/influxdb/schema"
+        schema.measurements(bucket: "${bucket}")
+      `;
+      logger.debug('Executing measurements query', { query: flux.trim(), bucket });
+      await new Promise((resolve, reject) => {
+        queryApi.queryRows(flux, {
+          next(row, tableMeta) {
+            try {
+              const o = tableMeta.toObject(row);
+              if (o._value) {
+                // Prefix with bucket name for uniqueness
+                const prefixed = `${bucket}:${o._value}`;
+                measurementsSet.add(prefixed);
+              }
+            } catch (err) {
+              logger.error('Error parsing measurement row data', { error: err.message });
             }
-          } catch (err) {
-            logger.error('Error parsing measurement row data', { error: err.message });
+          },
+          error(err) {
+            logger.error('InfluxDB measurements query error', { 
+              error: err.message,
+              query: flux.trim(),
+              bucket
+            });
+            reject(err);
+          },
+          complete() {
+            logger.info('Measurements query completed', { 
+              bucket,
+              measurementsFound: Array.from(measurementsSet).filter(m => m.startsWith(`${bucket}:`)).length
+            });
+            resolve();
           }
-        },
-        error(err) {
-          logger.error('InfluxDB measurements query error', { 
-            error: err.message,
-            query: flux.trim()
-          });
-          reject(err);
-        },
-        complete() {
-          logger.info('Measurements query completed', { 
-            measurementsFound: measurements.length,
-            buckets
-          });
-          resolve(measurements);
-        }
+        });
       });
-    });
+    }
+    return Array.from(measurementsSet);
   } catch (err) {
     logger.error('InfluxDB connection failed', { error: err.message });
     throw err;
