@@ -180,8 +180,26 @@
 
   </div>
 
+
   <div id="chart-container">
     <canvas id="sensorChart"></canvas>
+  </div>
+
+  <div id="stats-container" style="padding: 1rem 2rem; background: white;">
+    <h3>Statistics</h3>
+    <table id="stats-table" style="width:100%; border-collapse: collapse;">
+      <thead>
+        <tr>
+          <th style="border-bottom:1px solid #ccc; text-align:left; padding:0.5rem;">Measurement</th>
+          <th style="border-bottom:1px solid #ccc; text-align:right; padding:0.5rem;">Min</th>
+          <th style="border-bottom:1px solid #ccc; text-align:right; padding:0.5rem;">Avg</th>
+          <th style="border-bottom:1px solid #ccc; text-align:right; padding:0.5rem;">Max</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Stats rows will be inserted here -->
+      </tbody>
+    </table>
   </div>
 
   <!-- Flatpickr & Chart.js -->
@@ -352,16 +370,35 @@
       }
     });
 
+
     // Fetch & Render Chart
     async function loadAndRender({ start, stop } = {}) {
-      if (selectedBuckets.length === 0 || selectedMeasurements.length === 0) {
+      if (selectedMeasurements.length === 0) {
         return;
       }
-      
-  let url = `/api/sensors?limit=5000`;
-  url += `&buckets=${encodeURIComponent(selectedBuckets.join(','))}`;
-  url += `&measurements=${encodeURIComponent(selectedMeasurements.join(','))}`;
-      
+
+      // Parse selectedMeasurements into buckets and measurements
+      const bucketsSet = new Set();
+      const measurementsList = [];
+      selectedMeasurements.forEach(val => {
+        if (val.includes(':')) {
+          const [bucket, measurement] = val.split(':', 2);
+          bucketsSet.add(bucket);
+          measurementsList.push(measurement);
+        } else {
+          measurementsList.push(val);
+        }
+      });
+      const bucketsArr = Array.from(bucketsSet);
+
+      let url = `/api/sensors?limit=5000`;
+      if (bucketsArr.length > 0) {
+        url += `&buckets=${encodeURIComponent(bucketsArr.join(','))}`;
+      } else if (selectedBuckets.length > 0) {
+        url += `&buckets=${encodeURIComponent(selectedBuckets.join(','))}`;
+      }
+      url += `&measurements=${encodeURIComponent(measurementsList.join(','))}`;
+
       if (start && stop) {
         url += `&start=${encodeURIComponent(start)}&stop=${encodeURIComponent(stop)}`;
         csvStart.value = start.toISOString();
@@ -379,11 +416,12 @@
       try {
         const res = await fetch(url);
         const { readings } = await res.json();
-        
-        // Group readings by measurement (bucket:measurement)
+
+        // Group readings by bucket:measurement for charting
         const datasetsByMeasurement = {};
         readings.forEach(reading => {
-          const key = reading.measurement || 'Unknown';
+          // Use bucket:measurement as key for uniqueness
+          const key = (reading.bucket && reading.measurement) ? `${reading.bucket}:${reading.measurement}` : (reading.measurement || 'Unknown');
           if (!datasetsByMeasurement[key]) {
             datasetsByMeasurement[key] = {
               timestamps: [],
@@ -397,7 +435,7 @@
         // Create datasets for chart, show label as bucket (measurement)
         const datasets = Object.keys(datasetsByMeasurement).map((measurement, index) => {
           const colors = [
-            '#1e88e5', '#e53935', '#43a047', '#fb8c00', 
+            '#1e88e5', '#e53935', '#43a047', '#fb8c00',
             '#8e24aa', '#00acc1', '#fdd835', '#f4511e'
           ];
           const color = colors[index % colors.length];
@@ -423,7 +461,7 @@
         });
 
         // Use timestamps from first dataset for labels (assuming all have similar timestamps)
-        const labels = Object.keys(datasetsByMeasurement).length > 0 
+        const labels = Object.keys(datasetsByMeasurement).length > 0
           ? Object.values(datasetsByMeasurement)[0].timestamps.map(t => new Date(t).toLocaleString())
           : [];
 
@@ -459,6 +497,32 @@
             }
           });
         }
+
+        // --- Statistics Table ---
+        const statsTable = document.getElementById('stats-table').querySelector('tbody');
+        statsTable.innerHTML = '';
+        Object.keys(datasetsByMeasurement).forEach(measurement => {
+          const values = datasetsByMeasurement[measurement].values;
+          if (!values.length) return;
+          const min = Math.min(...values);
+          const max = Math.max(...values);
+          const avg = values.reduce((a, b) => a + b, 0) / values.length;
+          let label = measurement;
+          if (measurement.includes(':')) {
+            const [bucket, m] = measurement.split(':', 2);
+            label = `${bucket} (${m})`;
+          }
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td style="padding:0.5rem;">${label}</td>
+            <td style="padding:0.5rem; text-align:right;">${min.toFixed(2)}</td>
+            <td style="padding:0.5rem; text-align:right;">${avg.toFixed(2)}</td>
+            <td style="padding:0.5rem; text-align:right;">${max.toFixed(2)}</td>
+          `;
+          statsTable.appendChild(row);
+        });
+        // --- End Statistics Table ---
+
       } catch (err) {
         console.error('Failed to load sensor data:', err);
       }
