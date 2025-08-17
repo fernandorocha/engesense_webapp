@@ -159,7 +159,7 @@
       background: #218838;
     }
 
-    /* Multi-select dropdowns */
+    /* Custom dropdown with checkboxes */
     .dropdown-section {
       display: flex;
       align-items: center;
@@ -170,19 +170,71 @@
       font-weight: 500;
       min-width: fit-content;
     }
-    .multi-select {
+    .custom-dropdown {
+      position: relative;
       min-width: 200px;
       max-width: 300px;
+    }
+    .dropdown-trigger {
       padding: 0.5rem;
       border: 1px solid #ccc;
       border-radius: 4px;
       font-size: 0.95rem;
       background: white;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 40px;
     }
-    .multi-select:focus {
+    .dropdown-trigger:focus {
       outline: none;
       border-color: var(--primary-color);
       box-shadow: 0 0 0 2px rgba(0, 68, 204, 0.2);
+    }
+    .dropdown-trigger:hover {
+      border-color: var(--accent-color);
+    }
+    .dropdown-arrow {
+      margin-left: 0.5rem;
+      transition: transform 0.2s;
+    }
+    .dropdown-trigger.open .dropdown-arrow {
+      transform: rotate(180deg);
+    }
+    .dropdown-content {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-shadow: 0 4px 8px var(--shadow);
+      z-index: 1000;
+      max-height: 250px;
+      overflow-y: auto;
+      display: none;
+    }
+    .dropdown-content.open {
+      display: block;
+    }
+    .dropdown-item {
+      padding: 0.5rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .dropdown-item:hover {
+      background: #f5f5f5;
+    }
+    .dropdown-item input[type="checkbox"] {
+      margin: 0;
+    }
+    .dropdown-selected-count {
+      color: #666;
+      font-size: 0.9rem;
     }
   </style>
 </head>
@@ -204,16 +256,28 @@
     <!-- Bucket and Measurement Selection -->
     <div class="dropdown-section">
       <label for="bucketsSelect">Buckets:</label>
-      <select id="bucketsSelect" class="multi-select" multiple>
-        <option value="">Loading buckets...</option>
-      </select>
+      <div class="custom-dropdown" id="bucketsDropdown">
+        <div class="dropdown-trigger" tabindex="0">
+          <span class="dropdown-text">Loading buckets...</span>
+          <span class="dropdown-arrow">▼</span>
+        </div>
+        <div class="dropdown-content">
+          <!-- Options will be populated dynamically -->
+        </div>
+      </div>
     </div>
     
     <div class="dropdown-section">
       <label for="measurementsSelect">Measurements:</label>
-      <select id="measurementsSelect" class="multi-select" multiple>
-        <option value="">Select buckets first</option>
-      </select>
+      <div class="custom-dropdown" id="measurementsDropdown">
+        <div class="dropdown-trigger" tabindex="0">
+          <span class="dropdown-text">Select buckets first</span>
+          <span class="dropdown-arrow">▼</span>
+        </div>
+        <div class="dropdown-content">
+          <!-- Options will be populated dynamically -->
+        </div>
+      </div>
     </div>
 
     <!-- Time Range Controls Section -->
@@ -296,104 +360,230 @@
     const csvStart = document.getElementById('csvStart');
     const csvStop  = document.getElementById('csvStop');
     const rangeInput = document.getElementById('rangePicker');
-    const bucketsSelect = document.getElementById('bucketsSelect');
-    const measurementsSelect = document.getElementById('measurementsSelect');
+    const bucketsDropdown = document.getElementById('bucketsDropdown');
+    const measurementsDropdown = document.getElementById('measurementsDropdown');
 
     let currentRange = '-1h';
     let chart;
     let selectedBuckets = [];
     let selectedMeasurements = [];
 
+    // Custom dropdown functionality
+    function initializeDropdown(dropdownElement, onSelectionChange) {
+      const trigger = dropdownElement.querySelector('.dropdown-trigger');
+      const content = dropdownElement.querySelector('.dropdown-content');
+      const textElement = trigger.querySelector('.dropdown-text');
+
+      // Toggle dropdown
+      trigger.addEventListener('click', () => {
+        const isOpen = content.classList.contains('open');
+        closeAllDropdowns();
+        if (!isOpen) {
+          content.classList.add('open');
+          trigger.classList.add('open');
+        }
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!dropdownElement.contains(e.target)) {
+          content.classList.remove('open');
+          trigger.classList.remove('open');
+        }
+      });
+
+      // Handle checkbox changes
+      content.addEventListener('change', (e) => {
+        if (e.target.type === 'checkbox') {
+          onSelectionChange();
+        }
+      });
+
+      return { trigger, content, textElement };
+    }
+
+    function closeAllDropdowns() {
+      document.querySelectorAll('.dropdown-content.open').forEach(content => {
+        content.classList.remove('open');
+      });
+      document.querySelectorAll('.dropdown-trigger.open').forEach(trigger => {
+        trigger.classList.remove('open');
+      });
+    }
+
+    function updateDropdownText(dropdownElement, items, selectedItems) {
+      const textElement = dropdownElement.querySelector('.dropdown-text');
+      if (selectedItems.length === 0) {
+        textElement.textContent = items.length === 0 ? 'No items available' : 'Select items...';
+      } else if (selectedItems.length === 1) {
+        textElement.textContent = selectedItems[0];
+      } else {
+        textElement.textContent = `${selectedItems.length} items selected`;
+      }
+    }
+
+    function populateDropdown(dropdownElement, items, selectedItems, displayFormatter = null) {
+      const content = dropdownElement.querySelector('.dropdown-content');
+      content.innerHTML = '';
+
+      if (items.length === 0) {
+        content.innerHTML = '<div class="dropdown-item">No items available</div>';
+        return;
+      }
+
+      items.forEach(item => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'dropdown-item';
+        
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = item;
+        checkbox.checked = selectedItems.includes(item);
+        
+        const label = document.createElement('label');
+        label.textContent = displayFormatter ? displayFormatter(item) : item;
+        label.style.cursor = 'pointer';
+        label.style.marginLeft = '0.25rem';
+        
+        itemDiv.appendChild(checkbox);
+        itemDiv.appendChild(label);
+        
+        // Make the whole item clickable
+        itemDiv.addEventListener('click', (e) => {
+          if (e.target !== checkbox) {
+            checkbox.checked = !checkbox.checked;
+            checkbox.dispatchEvent(new Event('change'));
+          }
+        });
+        
+        content.appendChild(itemDiv);
+      });
+    }
+
+    // Initialize dropdowns
+    const bucketsDropdownControls = initializeDropdown(bucketsDropdown, () => {
+      const checkboxes = bucketsDropdown.querySelectorAll('input[type="checkbox"]:checked');
+      selectedBuckets = Array.from(checkboxes).map(cb => cb.value);
+      updateDropdownText(bucketsDropdown, getAllBuckets(), selectedBuckets);
+      selectedMeasurements = []; // Reset measurements when buckets change
+      updateCsvFields();
+      loadMeasurements();
+    });
+
+    const measurementsDropdownControls = initializeDropdown(measurementsDropdown, () => {
+      const checkboxes = measurementsDropdown.querySelectorAll('input[type="checkbox"]:checked');
+      selectedMeasurements = Array.from(checkboxes).map(cb => cb.value);
+      updateDropdownText(measurementsDropdown, getAllMeasurements(), selectedMeasurements);
+      updateCsvFields();
+      if (selectedMeasurements.length > 0) {
+        loadAndRender();
+      }
+    });
+
+    let allBuckets = [];
+    let allMeasurements = [];
+
+    function getAllBuckets() { return allBuckets; }
+    function getAllMeasurements() { return allMeasurements; }
+
     // Load available buckets on page load
     async function loadBuckets() {
       try {
         const res = await fetch('/api/buckets');
-        const { buckets } = await res.json();
         
-        bucketsSelect.innerHTML = '';
-        if (buckets.length === 0) {
-          bucketsSelect.innerHTML = '<option value="">No buckets available</option>';
+        if (!res.ok) {
+          console.error('Failed to load buckets: API returned error');
+          allBuckets = [];
+          updateDropdownText(bucketsDropdown, [], []);
           return;
         }
         
-        buckets.forEach(bucket => {
-          const option = document.createElement('option');
-          option.value = bucket;
-          option.textContent = bucket;
-          bucketsSelect.appendChild(option);
-        });
+        const data = await res.json();
+        allBuckets = data.buckets || [];
         
-        // Auto-select first bucket if available
-        if (buckets.length > 0) {
-          bucketsSelect.options[0].selected = true;
-          selectedBuckets = [buckets[0]];
+        if (allBuckets.length === 0) {
+          updateDropdownText(bucketsDropdown, [], []);
+          return;
+        }
+        
+        populateDropdown(bucketsDropdown, allBuckets, selectedBuckets);
+        updateDropdownText(bucketsDropdown, allBuckets, selectedBuckets);
+        
+        // Auto-select first bucket if available and none selected
+        if (allBuckets.length > 0 && selectedBuckets.length === 0) {
+          selectedBuckets = [allBuckets[0]];
+          populateDropdown(bucketsDropdown, allBuckets, selectedBuckets);
+          updateDropdownText(bucketsDropdown, allBuckets, selectedBuckets);
           await loadMeasurements();
         }
       } catch (err) {
         console.error('Failed to load buckets:', err);
-        bucketsSelect.innerHTML = '<option value="">Error loading buckets</option>';
+        allBuckets = [];
+        updateDropdownText(bucketsDropdown, [], []);
       }
     }
 
     // Load measurements for selected buckets
     async function loadMeasurements() {
       if (selectedBuckets.length === 0) {
-        measurementsSelect.innerHTML = '<option value="">Select buckets first</option>';
+        allMeasurements = [];
+        populateDropdown(measurementsDropdown, [], []);
+        updateDropdownText(measurementsDropdown, [], []);
         return;
       }
       
       try {
         const bucketsParam = selectedBuckets.join(',');
         const res = await fetch(`/api/measurements?buckets=${encodeURIComponent(bucketsParam)}`);
-        const { measurements } = await res.json();
+        
+        if (!res.ok) {
+          console.error('Failed to load measurements: API returned error');
+          allMeasurements = [];
+          selectedMeasurements = [];
+          populateDropdown(measurementsDropdown, [], []);
+          updateDropdownText(measurementsDropdown, [], []);
+          return;
+        }
+        
+        const data = await res.json();
+        const measurements = data.measurements || [];
 
-        measurementsSelect.innerHTML = '';
-        if (measurements.length === 0) {
-          measurementsSelect.innerHTML = '<option value="">No measurements available</option>';
+        allMeasurements = measurements;
+        selectedMeasurements = []; // Reset measurements when buckets change
+
+        if (allMeasurements.length === 0) {
+          populateDropdown(measurementsDropdown, [], []);
+          updateDropdownText(measurementsDropdown, [], []);
           return;
         }
 
-        // Show user-friendly label: bucket:measurement -> bucket (measurement)
-        measurements.forEach(measurement => {
-          const option = document.createElement('option');
-          option.value = measurement;
+        // Use display formatter for bucket:measurement -> bucket (measurement)
+        const displayFormatter = (measurement) => {
           if (measurement.includes(':')) {
             const [bucket, m] = measurement.split(':', 2);
-            option.textContent = `${bucket} (${m})`;
-          } else {
-            option.textContent = measurement;
+            return `${bucket} (${m})`;
           }
-          measurementsSelect.appendChild(option);
-        });
+          return measurement;
+        };
+
+        populateDropdown(measurementsDropdown, allMeasurements, selectedMeasurements, displayFormatter);
+        updateDropdownText(measurementsDropdown, allMeasurements, selectedMeasurements);
 
         // Auto-select first measurement if available
-        if (measurements.length > 0) {
-          measurementsSelect.options[0].selected = true;
-          selectedMeasurements = [measurements[0]];
-          loadAndRender();
+        if (allMeasurements.length > 0) {
+          selectedMeasurements = [allMeasurements[0]];
+          populateDropdown(measurementsDropdown, allMeasurements, selectedMeasurements, displayFormatter);
+          updateDropdownText(measurementsDropdown, allMeasurements, selectedMeasurements);
+          // Don't call loadAndRender() here since we don't have real data
         }
       } catch (err) {
         console.error('Failed to load measurements:', err);
-        measurementsSelect.innerHTML = '<option value="">Error loading measurements</option>';
+        allMeasurements = [];
+        selectedMeasurements = [];
+        populateDropdown(measurementsDropdown, [], []);
+        updateDropdownText(measurementsDropdown, [], []);
       }
     }
-
-    // Handle bucket selection changes
-    bucketsSelect.addEventListener('change', () => {
-      selectedBuckets = Array.from(bucketsSelect.selectedOptions).map(option => option.value);
-      selectedMeasurements = []; // Reset measurements when buckets change
-      updateCsvFields();
-      loadMeasurements();
-    });
-
-    // Handle measurement selection changes
-    measurementsSelect.addEventListener('change', () => {
-      selectedMeasurements = Array.from(measurementsSelect.selectedOptions).map(option => option.value);
-      updateCsvFields();
-      if (selectedMeasurements.length > 0) {
-        loadAndRender();
-      }
-    });
 
     // Update CSV form fields with current selections
     function updateCsvFields() {
@@ -431,25 +621,32 @@
       };
     });
 
-    // Initialize Flatpickr for range selection
-    flatpickr(rangeInput, {
-      mode: 'range',
-      enableTime: true,
-      dateFormat: 'Y-m-d H:i',
-      onClose: function(selectedDates) {
-        if (selectedDates.length === 2) {
-          const [start, stop] = selectedDates;
-          csvStart.value = start.toISOString();
-          csvStop.value  = stop.toISOString();
-          csvRange.value = '';
+    // Initialize Flatpickr for range selection (only if available)
+    if (typeof flatpickr !== 'undefined') {
+      flatpickr(rangeInput, {
+        mode: 'range',
+        enableTime: true,
+        dateFormat: 'Y-m-d H:i',
+        onClose: function(selectedDates) {
+          if (selectedDates.length === 2) {
+            const [start, stop] = selectedDates;
+            csvStart.value = start.toISOString();
+            csvStop.value  = stop.toISOString();
+            csvRange.value = '';
 
-          loadAndRender({
-            start: start.toISOString(),
-            stop:  stop.toISOString()
-          });
+            loadAndRender({
+              start: start.toISOString(),
+              stop:  stop.toISOString()
+            });
+          }
         }
-      }
-    });
+      });
+    } else {
+      // Disable calendar mode if flatpickr is not available
+      btnAbs.disabled = true;
+      btnAbs.style.opacity = '0.5';
+      btnAbs.style.cursor = 'not-allowed';
+    }
 
     // Refresh button functionality
     refreshBtn.onclick = () => {
@@ -553,37 +750,44 @@
           ? Object.values(datasetsByMeasurement)[0].timestamps.map(t => new Date(t).toLocaleString())
           : [];
 
-        if (chart) {
-          chart.data.labels = labels;
-          chart.data.datasets = datasets;
-          chart.update();
-        } else {
-          const ctx = document.getElementById('sensorChart').getContext('2d');
-          chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-              labels,
-              datasets
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              scales: {
-                x: {
-                  title: { display: true, text: 'Time' }
-                },
-                y: {
-                  title: { display: true, text: 'Value' }
-                }
+        // Chart rendering (only if Chart.js is available)
+        if (typeof Chart !== 'undefined') {
+          if (chart) {
+            chart.data.labels = labels;
+            chart.data.datasets = datasets;
+            chart.update();
+          } else {
+            const ctx = document.getElementById('sensorChart').getContext('2d');
+            chart = new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels,
+                datasets
               },
-              plugins: {
-                legend: {
-                  display: true,
-                  position: 'top'
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  x: {
+                    title: { display: true, text: 'Time' }
+                  },
+                  y: {
+                    title: { display: true, text: 'Value' }
+                  }
+                },
+                plugins: {
+                  legend: {
+                    display: true,
+                    position: 'top'
+                  }
                 }
               }
-            }
-          });
+            });
+          }
+        } else {
+          // Display message when Chart.js is not available
+          const chartContainer = document.getElementById('chart-container');
+          chartContainer.innerHTML = '<p style="text-align: center; color: #666;">Chart display requires Chart.js library to be loaded.</p>';
         }
 
         // --- Statistics Table ---
