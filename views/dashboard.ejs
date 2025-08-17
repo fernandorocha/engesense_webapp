@@ -368,6 +368,15 @@
     let selectedBuckets = [];
     let selectedMeasurements = [];
 
+    // Display formatter for measurements: bucket:measurement -> bucket (measurement)
+    const measurementDisplayFormatter = (measurement) => {
+      if (measurement.includes(':')) {
+        const [bucket, m] = measurement.split(':', 2);
+        return `${bucket} (${m})`;
+      }
+      return measurement;
+    };
+
     // Custom dropdown functionality
     function initializeDropdown(dropdownElement, onSelectionChange) {
       const trigger = dropdownElement.querySelector('.dropdown-trigger');
@@ -411,12 +420,13 @@
       });
     }
 
-    function updateDropdownText(dropdownElement, items, selectedItems) {
+    function updateDropdownText(dropdownElement, items, selectedItems, displayFormatter = null) {
       const textElement = dropdownElement.querySelector('.dropdown-text');
       if (selectedItems.length === 0) {
         textElement.textContent = items.length === 0 ? 'No items available' : 'Select items...';
       } else if (selectedItems.length === 1) {
-        textElement.textContent = selectedItems[0];
+        const displayText = displayFormatter ? displayFormatter(selectedItems[0]) : selectedItems[0];
+        textElement.textContent = displayText;
       } else {
         textElement.textContent = `${selectedItems.length} items selected`;
       }
@@ -472,7 +482,7 @@
     const measurementsDropdownControls = initializeDropdown(measurementsDropdown, () => {
       const checkboxes = measurementsDropdown.querySelectorAll('input[type="checkbox"]:checked');
       selectedMeasurements = Array.from(checkboxes).map(cb => cb.value);
-      updateDropdownText(measurementsDropdown, getAllMeasurements(), selectedMeasurements);
+      updateDropdownText(measurementsDropdown, getAllMeasurements(), selectedMeasurements, measurementDisplayFormatter);
       updateCsvFields();
       if (selectedMeasurements.length > 0) {
         loadAndRender();
@@ -561,21 +571,15 @@
         }
 
         // Use display formatter for bucket:measurement -> bucket (measurement)
-        const displayFormatter = (measurement) => {
-          if (measurement.includes(':')) {
-            const [bucket, m] = measurement.split(':', 2);
-            return `${bucket} (${m})`;
-          }
-          return measurement;
-        };
+        // (Using global formatter instead of local)
 
         // Auto-select first measurement only if no valid selections remain
         if (selectedMeasurements.length === 0 && allMeasurements.length > 0) {
           selectedMeasurements = [allMeasurements[0]];
         }
 
-        populateDropdown(measurementsDropdown, allMeasurements, selectedMeasurements, displayFormatter);
-        updateDropdownText(measurementsDropdown, allMeasurements, selectedMeasurements);
+        populateDropdown(measurementsDropdown, allMeasurements, selectedMeasurements, measurementDisplayFormatter);
+        updateDropdownText(measurementsDropdown, allMeasurements, selectedMeasurements, measurementDisplayFormatter);
         
         // Update CSV fields and render chart if measurements are selected
         updateCsvFields();
