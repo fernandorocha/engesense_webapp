@@ -127,6 +127,38 @@
       height: 600px;
     }
 
+    /* Time Range Controls Section */
+    .time-range-section {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      background: #f8f9fa;
+      margin-left: 1rem;
+    }
+    .time-range-section .section-label {
+      font-weight: 600;
+      color: var(--primary-color);
+      margin-right: 0.5rem;
+      font-size: 0.9rem;
+    }
+    .refresh-btn {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 0.5rem 0.75rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-size: 0.9rem;
+      margin-left: 0.5rem;
+    }
+    .refresh-btn:hover {
+      background: #218838;
+    }
+
     /* Multi-select dropdowns */
     .dropdown-section {
       display: flex;
@@ -184,28 +216,36 @@
       </select>
     </div>
 
-    <!-- Mode toggles -->
-    <button id="btn-relative" class="btn active">Relative</button>
-    <button id="btn-absolute" class="btn">Calendar</button>
+    <!-- Time Range Controls Section -->
+    <div class="time-range-section">
+      <span class="section-label">Time Range:</span>
+      
+      <!-- Mode toggles -->
+      <button id="btn-relative" class="btn active">Relative</button>
+      <button id="btn-absolute" class="btn">Calendar</button>
 
-    <!-- Relative-range quick buttons -->
-    <div id="relative-controls">
-      <button class="btn" data-range="-5m">5 min</button>
-      <button class="btn" data-range="-15m">15 min</button>
-      <button class="btn" data-range="-30m">30 min</button>
-      <button class="btn" data-range="-1h">1 hour</button>
-      <button class="btn" data-range="-6h">6 hours</button>
-      <button class="btn" data-range="-12h">12 hours</button>
-      <button class="btn" data-range="-1d">1 day</button>
+      <!-- Relative-range quick buttons -->
+      <div id="relative-controls">
+        <button class="btn" data-range="-5m">5 min</button>
+        <button class="btn" data-range="-15m">15 min</button>
+        <button class="btn" data-range="-30m">30 min</button>
+        <button class="btn" data-range="-1h">1 hour</button>
+        <button class="btn" data-range="-6h">6 hours</button>
+        <button class="btn" data-range="-12h">12 hours</button>
+        <button class="btn" data-range="-1d">1 day</button>
+      </div>
+
+      <!-- Flatpickr date-range input -->
+      <input
+        id="rangePicker"
+        type="text"
+        placeholder="Select date & time range"
+        readonly
+      />
+      
+      <!-- Refresh button -->
+      <button id="refresh-btn" class="refresh-btn">🔄 Refresh</button>
     </div>
-
-    <!-- Flatpickr date-range input -->
-    <input
-      id="rangePicker"
-      type="text"
-      placeholder="Select date & time range"
-      readonly
-    />
 
     <!-- CSV Export form -->
     <form method="GET" action="/export" class="export-form">
@@ -251,6 +291,7 @@
     const btnRel     = document.getElementById('btn-relative');
     const btnAbs     = document.getElementById('btn-absolute');
     const relCtrls   = document.getElementById('relative-controls');
+    const refreshBtn = document.getElementById('refresh-btn');
     const csvRange = document.getElementById('csvRange');
     const csvStart = document.getElementById('csvStart');
     const csvStop  = document.getElementById('csvStop');
@@ -409,6 +450,13 @@
         }
       }
     });
+
+    // Refresh button functionality
+    refreshBtn.onclick = () => {
+      if (selectedMeasurements.length > 0) {
+        loadAndRender();
+      }
+    };
 
 
     // Fetch & Render Chart
