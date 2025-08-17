@@ -4,3 +4,4 @@ data.sqlite
 test-data.sqlite
 *.log
 examples/
+cookies.txt
