@@ -52,6 +52,11 @@ app.use(adminRoutes);
 app.use(sensorRoutes);
 app.use(exportRoute);
 
+// Root route - redirect to login
+app.get('/', (req, res) => {
+  res.redirect('/login');
+});
+
 // Protected dashboard
 app.get('/dashboard', ensureAuth, (req, res) => {
   res.render('dashboard');

@@ -15,12 +15,20 @@
   />
 
   <style>
+    :root {
+      --primary-color: #0044cc;
+      --accent-color: #0066ff;
+      --bg-light: #f5f7fa;
+      --text-color: #333;
+      --shadow: rgba(0, 0, 0, 0.1);
+    }
+
     /* Reset & base */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #f0f2f5;
-      color: #333;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      background: var(--bg-light);
+      color: var(--text-color);
       display: flex;
       flex-direction: column;
       min-height: 100vh;
@@ -34,15 +42,38 @@
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid #e0e0e0;
+      box-shadow: 0 2px 4px var(--shadow);
     }
-    header h1 { font-size: 1.5rem; }
+    
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    .logo img {
+      width: 60px;
+      height: auto;
+    }
+    
+    .welcome-text {
+      color: var(--primary-color);
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+    
     header form button {
-      background: #e53935;
+      background: var(--primary-color);
       color: white;
       border: none;
       padding: 0.5rem 1rem;
       border-radius: 4px;
       cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    header form button:hover {
+      background: var(--accent-color);
     }
 
     /* Controls Section */
@@ -54,9 +85,10 @@
       background: white;
       border-bottom: 1px solid #e0e0e0;
       flex-wrap: wrap;
+      box-shadow: 0 1px 3px var(--shadow);
     }
     .btn {
-      background: #1976d2;
+      background: var(--primary-color);
       color: white;
       border: none;
       padding: 0.5rem 0.75rem;
@@ -64,8 +96,8 @@
       cursor: pointer;
       transition: background 0.2s;
     }
-    .btn:hover { background: #155a9c; }
-    .btn.active { background: #0d3c6e; }
+    .btn:hover { background: var(--accent-color); }
+    .btn.active { background: #003399; }
 
     #relative-controls button { font-size: 0.9rem; }
     #rangePicker {
@@ -85,6 +117,9 @@
       display: flex;
       justify-content: center;
       align-items: center;
+      margin: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px var(--shadow);
     }
     #sensorChart {
       width: 100%;
@@ -114,15 +149,20 @@
     }
     .multi-select:focus {
       outline: none;
-      border-color: #1976d2;
-      box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 2px rgba(0, 68, 204, 0.2);
     }
   </style>
 </head>
 <body>
 
   <header>
-    <h1>Welcome, <%= user.username %> (<%= user.role %>)</h1>
+    <div class="header-left">
+      <div class="logo">
+        <img src="/images/logo.jpg" alt="Company Logo">
+      </div>
+      <h1 class="welcome-text">Welcome, <%= user.username %> (<%= user.role %>)</h1>
+    </div>
     <form method="POST" action="/logout">
       <button type="submit">Logout</button>
     </form>
@@ -185,15 +225,15 @@
     <canvas id="sensorChart"></canvas>
   </div>
 
-  <div id="stats-container" style="padding: 1rem 2rem; background: white;">
-    <h3>Statistics</h3>
+  <div id="stats-container" style="padding: 1rem 2rem; background: white; margin: 1rem; border-radius: 8px; box-shadow: 0 2px 8px var(--shadow);">
+    <h3 style="color: var(--primary-color); margin-bottom: 1rem;">Statistics</h3>
     <table id="stats-table" style="width:100%; border-collapse: collapse;">
       <thead>
         <tr>
-          <th style="border-bottom:1px solid #ccc; text-align:left; padding:0.5rem;">Measurement</th>
-          <th style="border-bottom:1px solid #ccc; text-align:right; padding:0.5rem;">Min</th>
-          <th style="border-bottom:1px solid #ccc; text-align:right; padding:0.5rem;">Avg</th>
-          <th style="border-bottom:1px solid #ccc; text-align:right; padding:0.5rem;">Max</th>
+          <th style="border-bottom:1px solid #ccc; text-align:left; padding:0.5rem; color: var(--primary-color);">Measurement</th>
+          <th style="border-bottom:1px solid #ccc; text-align:right; padding:0.5rem; color: var(--primary-color);">Min</th>
+          <th style="border-bottom:1px solid #ccc; text-align:right; padding:0.5rem; color: var(--primary-color);">Avg</th>
+          <th style="border-bottom:1px solid #ccc; text-align:right; padding:0.5rem; color: var(--primary-color);">Max</th>
         </tr>
       </thead>
       <tbody>
