@@ -490,15 +490,16 @@
     async function loadBuckets() {
       try {
         const res = await fetch('/api/buckets');
-        const data = await res.json();
         
-        // If API fails, use mock data for testing
         if (!res.ok) {
-          console.warn('API failed, using mock data for testing');
-          allBuckets = ['sensor-data', 'environmental', 'industrial'];
-        } else {
-          allBuckets = data.buckets || [];
+          console.error('Failed to load buckets: API returned error');
+          allBuckets = [];
+          updateDropdownText(bucketsDropdown, [], []);
+          return;
         }
+        
+        const data = await res.json();
+        allBuckets = data.buckets || [];
         
         if (allBuckets.length === 0) {
           updateDropdownText(bucketsDropdown, [], []);
@@ -517,19 +518,8 @@
         }
       } catch (err) {
         console.error('Failed to load buckets:', err);
-        // Use mock data for testing
-        console.warn('Using mock data for testing');
-        allBuckets = ['sensor-data', 'environmental', 'industrial'];
-        populateDropdown(bucketsDropdown, allBuckets, selectedBuckets);
-        updateDropdownText(bucketsDropdown, allBuckets, selectedBuckets);
-        
-        // Auto-select first bucket
-        if (allBuckets.length > 0 && selectedBuckets.length === 0) {
-          selectedBuckets = [allBuckets[0]];
-          populateDropdown(bucketsDropdown, allBuckets, selectedBuckets);
-          updateDropdownText(bucketsDropdown, allBuckets, selectedBuckets);
-          await loadMeasurements();
-        }
+        allBuckets = [];
+        updateDropdownText(bucketsDropdown, [], []);
       }
     }
 
@@ -545,18 +535,18 @@
       try {
         const bucketsParam = selectedBuckets.join(',');
         const res = await fetch(`/api/measurements?buckets=${encodeURIComponent(bucketsParam)}`);
-        let measurements;
         
-        // If API fails, use mock data for testing
         if (!res.ok) {
-          console.warn('Measurements API failed, using mock data for testing');
-          measurements = selectedBuckets.flatMap(bucket => 
-            ['temperature', 'humidity', 'pressure'].map(m => `${bucket}:${m}`)
-          );
-        } else {
-          const data = await res.json();
-          measurements = data.measurements || [];
+          console.error('Failed to load measurements: API returned error');
+          allMeasurements = [];
+          selectedMeasurements = [];
+          populateDropdown(measurementsDropdown, [], []);
+          updateDropdownText(measurementsDropdown, [], []);
+          return;
         }
+        
+        const data = await res.json();
+        const measurements = data.measurements || [];
 
         allMeasurements = measurements;
         selectedMeasurements = []; // Reset measurements when buckets change
@@ -588,29 +578,10 @@
         }
       } catch (err) {
         console.error('Failed to load measurements:', err);
-        // Use mock data for testing
-        console.warn('Using mock measurements data for testing');
-        allMeasurements = selectedBuckets.flatMap(bucket => 
-          ['temperature', 'humidity', 'pressure'].map(m => `${bucket}:${m}`)
-        );
-        
-        const displayFormatter = (measurement) => {
-          if (measurement.includes(':')) {
-            const [bucket, m] = measurement.split(':', 2);
-            return `${bucket} (${m})`;
-          }
-          return measurement;
-        };
-
-        populateDropdown(measurementsDropdown, allMeasurements, selectedMeasurements, displayFormatter);
-        updateDropdownText(measurementsDropdown, allMeasurements, selectedMeasurements);
-
-        // Auto-select first measurement if available
-        if (allMeasurements.length > 0) {
-          selectedMeasurements = [allMeasurements[0]];
-          populateDropdown(measurementsDropdown, allMeasurements, selectedMeasurements, displayFormatter);
-          updateDropdownText(measurementsDropdown, allMeasurements, selectedMeasurements);
-        }
+        allMeasurements = [];
+        selectedMeasurements = [];
+        populateDropdown(measurementsDropdown, [], []);
+        updateDropdownText(measurementsDropdown, [], []);
       }
     }
 
