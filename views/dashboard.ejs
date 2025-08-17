@@ -465,7 +465,6 @@
       const checkboxes = bucketsDropdown.querySelectorAll('input[type="checkbox"]:checked');
       selectedBuckets = Array.from(checkboxes).map(cb => cb.value);
       updateDropdownText(bucketsDropdown, getAllBuckets(), selectedBuckets);
-      selectedMeasurements = []; // Reset measurements when buckets change
       updateCsvFields();
       loadMeasurements();
     });
@@ -549,9 +548,13 @@
         const measurements = data.measurements || [];
 
         allMeasurements = measurements;
-        selectedMeasurements = []; // Reset measurements when buckets change
+        
+        // Filter selectedMeasurements to only include measurements that still exist
+        // This preserves user selection when possible, but removes invalid selections
+        selectedMeasurements = selectedMeasurements.filter(m => allMeasurements.includes(m));
 
         if (allMeasurements.length === 0) {
+          selectedMeasurements = [];
           populateDropdown(measurementsDropdown, [], []);
           updateDropdownText(measurementsDropdown, [], []);
           return;
@@ -566,15 +569,18 @@
           return measurement;
         };
 
+        // Auto-select first measurement only if no valid selections remain
+        if (selectedMeasurements.length === 0 && allMeasurements.length > 0) {
+          selectedMeasurements = [allMeasurements[0]];
+        }
+
         populateDropdown(measurementsDropdown, allMeasurements, selectedMeasurements, displayFormatter);
         updateDropdownText(measurementsDropdown, allMeasurements, selectedMeasurements);
-
-        // Auto-select first measurement if available
-        if (allMeasurements.length > 0) {
-          selectedMeasurements = [allMeasurements[0]];
-          populateDropdown(measurementsDropdown, allMeasurements, selectedMeasurements, displayFormatter);
-          updateDropdownText(measurementsDropdown, allMeasurements, selectedMeasurements);
-          // Don't call loadAndRender() here since we don't have real data
+        
+        // Update CSV fields and render chart if measurements are selected
+        updateCsvFields();
+        if (selectedMeasurements.length > 0) {
+          loadAndRender();
         }
       } catch (err) {
         console.error('Failed to load measurements:', err);
