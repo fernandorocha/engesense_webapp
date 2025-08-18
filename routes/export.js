@@ -8,6 +8,81 @@ const XLSX = require('xlsx');
 
 const router = express.Router();
 
+/**
+ * Groups readings by bucket and timestamp for Excel export
+ * @param {Array} readings - Array of sensor readings
+ * @returns {Object} Grouped data by bucket, then by timestamp
+ */
+function groupDataByTimestampAndBucket(readings) {
+  const grouped = {};
+  
+  readings.forEach(reading => {
+    const { bucket, timestamp, measurement, value } = reading;
+    
+    if (!grouped[bucket]) {
+      grouped[bucket] = {};
+    }
+    
+    if (!grouped[bucket][timestamp]) {
+      grouped[bucket][timestamp] = {};
+    }
+    
+    grouped[bucket][timestamp][measurement] = value;
+  });
+  
+  return grouped;
+}
+
+/**
+ * Converts timestamped data to an array format suitable for Excel sheets
+ * @param {Object} timestampData - Data grouped by timestamp
+ * @returns {Array} Array of objects for Excel sheet
+ */
+function convertToTimeseriesFormat(timestampData) {
+  const result = [];
+  const timestamps = Object.keys(timestampData).sort();
+  
+  timestamps.forEach(timestamp => {
+    const row = { timestamp };
+    const measurements = timestampData[timestamp];
+    
+    // Add each measurement as a column
+    Object.keys(measurements).forEach(measurement => {
+      row[measurement] = measurements[measurement];
+    });
+    
+    result.push(row);
+  });
+  
+  return result;
+}
+
+/**
+ * Groups readings by timestamp for CSV export with bucket:measurement columns
+ * @param {Array} readings - Array of sensor readings
+ * @returns {Array} Array of objects grouped by timestamp
+ */
+function groupDataForCSV(readings) {
+  const grouped = {};
+  
+  readings.forEach(reading => {
+    const { timestamp, bucket, measurement, value } = reading;
+    
+    if (!grouped[timestamp]) {
+      grouped[timestamp] = { timestamp };
+    }
+    
+    const columnName = `${bucket}:${measurement}`;
+    grouped[timestamp][columnName] = value;
+  });
+  
+  // Convert to array and sort by timestamp
+  const result = Object.values(grouped);
+  result.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  
+  return result;
+}
+
 router.get('/export', ensureAuth, validateSensorQuery, async (req, res) => {
   const { range, start, stop, limit = '5000', buckets, measurements, format = 'csv' } = req.query;
 
@@ -50,10 +125,16 @@ router.get('/export', ensureAuth, validateSensorQuery, async (req, res) => {
       : `sensor_${measurementSuffix}_${new Date().toISOString().slice(0, 10)}`;
 
     if (format.toLowerCase() === 'excel' || format.toLowerCase() === 'xlsx') {
-      // Excel export
-      const worksheet = XLSX.utils.json_to_sheet(readings);
+      // Excel export - group by timestamp with separate sheets per bucket
+      const groupedData = groupDataByTimestampAndBucket(readings);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Sensor Data');
+      
+      // Create a sheet for each bucket
+      for (const [bucket, timestampData] of Object.entries(groupedData)) {
+        const sheetData = convertToTimeseriesFormat(timestampData);
+        const worksheet = XLSX.utils.json_to_sheet(sheetData);
+        XLSX.utils.book_append_sheet(workbook, worksheet, bucket);
+      }
       
       const filename = `${baseFilename}.xlsx`;
       const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
@@ -65,6 +146,7 @@ router.get('/export', ensureAuth, validateSensorQuery, async (req, res) => {
       logger.info('Excel export completed', { 
         filename,
         recordCount: readings.length,
+        sheets: Object.keys(groupedData).length,
         range,
         start,
         stop,
@@ -73,9 +155,10 @@ router.get('/export', ensureAuth, validateSensorQuery, async (req, res) => {
         organization
       });
     } else {
-      // CSV export (default)
+      // CSV export (default) - group by timestamp with bucket:measurement columns
+      const csvData = groupDataForCSV(readings);
       const parser = new Parser();
-      const csv = parser.parse(readings);
+      const csv = parser.parse(csvData);
       const filename = `${baseFilename}.csv`;
 
       res.header('Content-Type', 'text/csv');
@@ -85,6 +168,7 @@ router.get('/export', ensureAuth, validateSensorQuery, async (req, res) => {
       logger.info('CSV export completed', { 
         filename,
         recordCount: readings.length,
+        timePoints: csvData.length,
         range,
         start,
         stop,
