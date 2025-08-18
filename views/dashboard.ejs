@@ -629,7 +629,8 @@
       loadMeasurements();
     });
 
-    const measurementsDropdownControls = initializeDropdown(measurementsDropdown, () => {
+    // Define the measurements onChange handler as a function so we can call it programmatically
+    function onMeasurementsChange() {
       const checkboxes = measurementsDropdown.querySelectorAll('input[type="checkbox"]:checked');
       selectedMeasurements = Array.from(checkboxes).map(cb => cb.value);
       updateDropdownText(measurementsDropdown, getAllMeasurements(), selectedMeasurements, measurementDisplayFormatter);
@@ -637,7 +638,9 @@
       if (selectedMeasurements.length > 0) {
         loadAndRender();
       }
-    });
+    }
+    
+    const measurementsDropdownControls = initializeDropdown(measurementsDropdown, onMeasurementsChange);
 
     let allBuckets = [];
     let allMeasurements = [];
@@ -750,11 +753,9 @@
         populateDropdown(measurementsDropdown, allMeasurements, selectedMeasurements, measurementDisplayFormatter);
         updateDropdownText(measurementsDropdown, allMeasurements, selectedMeasurements, measurementDisplayFormatter);
         
-        // Update CSV fields and render chart if measurements are selected
-        updateCsvFields();
-        if (selectedMeasurements.length > 0) {
-          loadAndRender();
-        }
+        // Ensure the measurements dropdown state is synchronized and chart/stats are updated
+        // This fixes the issue where auto-selected measurements don't trigger chart updates
+        onMeasurementsChange();
       } catch (err) {
         console.error('Failed to load measurements:', err);
         allMeasurements = [];
