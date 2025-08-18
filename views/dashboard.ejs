@@ -236,6 +236,26 @@
       color: #666;
       font-size: 0.9rem;
     }
+    
+    /* Export section styles */
+    .export-section {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .export-form {
+      display: inline-block;
+    }
+    .export-btn {
+      font-size: 0.9rem;
+      padding: 0.6rem 1rem;
+    }
+    .excel-btn {
+      background: #217346;
+    }
+    .excel-btn:hover {
+      background: #1b5d38;
+    }
   </style>
 </head>
 <body>
@@ -311,15 +331,28 @@
       <button id="refresh-btn" class="refresh-btn">🔄 Refresh</button>
     </div>
 
-    <!-- CSV Export form -->
-    <form method="GET" action="/export" class="export-form">
-      <input type="hidden" name="range" id="csvRange" value="">
-      <input type="hidden" name="start" id="csvStart" value="">
-      <input type="hidden" name="stop" id="csvStop" value="">
-      <input type="hidden" name="buckets" id="csvBuckets" value="">
-      <input type="hidden" name="measurements" id="csvMeasurements" value="">
-      <button type="submit" class="btn">Download CSV</button>
-    </form>
+    <!-- Export section -->
+    <div class="export-section">
+      <form method="GET" action="/export" class="export-form">
+        <input type="hidden" name="range" id="csvRange" value="">
+        <input type="hidden" name="start" id="csvStart" value="">
+        <input type="hidden" name="stop" id="csvStop" value="">
+        <input type="hidden" name="buckets" id="csvBuckets" value="">
+        <input type="hidden" name="measurements" id="csvMeasurements" value="">
+        <input type="hidden" name="format" value="csv">
+        <button type="submit" class="btn export-btn">📄 Download CSV</button>
+      </form>
+      
+      <form method="GET" action="/export" class="export-form">
+        <input type="hidden" name="range" id="excelRange" value="">
+        <input type="hidden" name="start" id="excelStart" value="">
+        <input type="hidden" name="stop" id="excelStop" value="">
+        <input type="hidden" name="buckets" id="excelBuckets" value="">
+        <input type="hidden" name="measurements" id="excelMeasurements" value="">
+        <input type="hidden" name="format" value="excel">
+        <button type="submit" class="btn export-btn excel-btn">📊 Download Excel</button>
+      </form>
+    </div>
    </div>
 
   </div>
@@ -359,6 +392,9 @@
     const csvRange = document.getElementById('csvRange');
     const csvStart = document.getElementById('csvStart');
     const csvStop  = document.getElementById('csvStop');
+    const excelRange = document.getElementById('excelRange');
+    const excelStart = document.getElementById('excelStart');
+    const excelStop  = document.getElementById('excelStop');
     const rangeInput = document.getElementById('rangePicker');
     const bucketsDropdown = document.getElementById('bucketsDropdown');
     const measurementsDropdown = document.getElementById('measurementsDropdown');
@@ -621,12 +657,27 @@
       }
     }
 
-    // Update CSV form fields with current selections
+    // Update CSV and Excel form fields with current selections
     function updateCsvFields() {
       const csvBuckets = document.getElementById('csvBuckets');
       const csvMeasurements = document.getElementById('csvMeasurements');
+      const excelBuckets = document.getElementById('excelBuckets');
+      const excelMeasurements = document.getElementById('excelMeasurements');
+      
       if (csvBuckets) csvBuckets.value = selectedBuckets.join(',');
       if (csvMeasurements) csvMeasurements.value = selectedMeasurements.join(',');
+      if (excelBuckets) excelBuckets.value = selectedBuckets.join(',');
+      if (excelMeasurements) excelMeasurements.value = selectedMeasurements.join(',');
+    }
+
+    // Update time range fields for both CSV and Excel forms
+    function updateTimeFields(range, start, stop) {
+      if (csvRange) csvRange.value = range || '';
+      if (csvStart) csvStart.value = start || '';
+      if (csvStop) csvStop.value = stop || '';
+      if (excelRange) excelRange.value = range || '';
+      if (excelStart) excelStart.value = start || '';
+      if (excelStop) excelStop.value = stop || '';
     }
 
     // Toggle Modes
@@ -650,9 +701,7 @@
         currentRange = btn.dataset.range;
         relCtrls.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        csvRange.value = btn.dataset.range;
-        csvStart.value = '';
-        csvStop.value = '';
+        updateTimeFields(btn.dataset.range, '', '');
         loadAndRender();
       };
     });
@@ -666,9 +715,7 @@
         onClose: function(selectedDates) {
           if (selectedDates.length === 2) {
             const [start, stop] = selectedDates;
-            csvStart.value = start.toISOString();
-            csvStop.value  = stop.toISOString();
-            csvRange.value = '';
+            updateTimeFields('', start.toISOString(), stop.toISOString());
 
             loadAndRender({
               start: start.toISOString(),
@@ -698,16 +745,13 @@
         return;
       }
 
-      // Parse selectedMeasurements into buckets and measurements
+      // Use selectedMeasurements directly to preserve bucket:measurement relationships
+      // Extract buckets for the URL parameter, but send measurements with their bucket prefixes
       const bucketsSet = new Set();
-      const measurementsList = [];
       selectedMeasurements.forEach(val => {
         if (val.includes(':')) {
-          const [bucket, measurement] = val.split(':', 2);
+          const [bucket] = val.split(':', 2);
           bucketsSet.add(bucket);
-          measurementsList.push(measurement);
-        } else {
-          measurementsList.push(val);
         }
       });
       const bucketsArr = Array.from(bucketsSet);
@@ -718,18 +762,16 @@
       } else if (selectedBuckets.length > 0) {
         url += `&buckets=${encodeURIComponent(selectedBuckets.join(','))}`;
       }
-      url += `&measurements=${encodeURIComponent(measurementsList.join(','))}`;
+      
+      // Send measurements with bucket prefixes to maintain relationships
+      url += `&measurements=${encodeURIComponent(selectedMeasurements.join(','))}`;
 
       if (start && stop) {
         url += `&start=${encodeURIComponent(start)}&stop=${encodeURIComponent(stop)}`;
-        csvStart.value = start.toISOString();
-        csvStop.value  = stop.toISOString();
-        csvRange.value = '';
+        updateTimeFields('', start.toISOString(), stop.toISOString());
       } else {
         url += `&range=${currentRange}`;
-        csvRange.value = currentRange;
-        csvStart.value = '';
-        csvStop.value = '';
+        updateTimeFields(currentRange, '', '');
       }
 
       updateCsvFields();

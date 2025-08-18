@@ -10,7 +10,12 @@
     "lint": "npx eslint . --ext .js --ignore-path .gitignore || echo 'ESLint not configured'",
     "check-syntax": "find . -name '*.js' -not -path './node_modules/*' -exec node -c {} \\;"
   },
-  "keywords": ["sensor", "influxdb", "express", "monitoring"],
+  "keywords": [
+    "sensor",
+    "influxdb",
+    "express",
+    "monitoring"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
@@ -22,6 +27,7 @@
     "express": "^5.1.0",
     "express-session": "^1.18.2",
     "json2csv": "^6.0.0-alpha.2",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "xlsx": "^0.18.5"
   }
 }
