@@ -32,7 +32,7 @@ class FallbackChart {
       ctx.fillStyle = '#666';
       ctx.font = '16px Roboto, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('No data available', canvas.width / 2, canvas.height / 2);
+      ctx.fillText('No data to display', canvas.width / 2, canvas.height / 2);
       return;
     }
     
