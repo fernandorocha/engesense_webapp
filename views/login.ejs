@@ -2,169 +2,129 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Engesense - Login</title>
-  
-  <!-- Google Fonts - Roboto -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-  
-  <!-- Material Design System -->
-  <link rel="stylesheet" href="/css/design-system.css">
-  
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1.0"
+  />
+  <title>Login</title>
   <style>
-    /* Login-specific styles */
+    :root {
+      --primary-color: #0044cc;
+      --accent-color: #0066ff;
+      --bg-light: #f5f7fa;
+      --text-color: #333;
+      --input-bg: #fff;
+      --input-border: #ddd;
+      --shadow: rgba(0, 0, 0, 0.1);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: var(--bg-light);
+      color: var(--text-color);
       display: flex;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      padding: var(--md-spacing-md);
     }
-    
-    .login-card {
+    .login-container {
+      background: #fff;
+      padding: 2rem 2.5rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px var(--shadow);
       width: 100%;
-      max-width: 400px;
-      padding: var(--md-spacing-2xl);
+      max-width: 360px;
       text-align: center;
     }
-    
-    .login-logo {
-      margin-bottom: var(--md-spacing-xl);
+    .logo img { width: 120px; margin-bottom: 1.5rem; }
+    h2 {
+      margin-bottom: 1.5rem;
+      color: var(--primary-color);
     }
-    
-    .login-logo img {
-      width: 120px;
-      height: auto;
-      border-radius: var(--md-radius-sm);
-      box-shadow: var(--md-shadow-1);
+    .input-group { text-align: left; margin-bottom: 1rem; }
+    .input-group label {
+      display: block;
+      margin-bottom: 0.3rem;
+      font-size: 0.9rem;
     }
-    
-    .login-title {
-      margin-bottom: var(--md-spacing-xl);
-      color: var(--md-on-surface);
+    .input-group input {
+      width: 100%;
+      padding: 0.7rem;
+      font-size: 1rem;
+      border: 1px solid var(--input-border);
+      border-radius: 4px;
+      background: var(--input-bg);
+      transition: border-color 0.2s;
     }
-    
-    .login-form {
-      display: flex;
-      flex-direction: column;
-      gap: var(--md-spacing-lg);
+    .input-group input:focus {
+      outline: none;
+      border-color: var(--accent-color);
     }
-    
-    .login-input-group {
-      text-align: left;
+    .btn {
+      width: 100%;
+      padding: 0.75rem;
+      background: var(--primary-color);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
     }
-    
-    .login-button {
-      margin-top: var(--md-spacing-sm);
+    .btn:hover { background: var(--accent-color); }
+    .forgot {
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
     }
-    
-    .login-forgot {
-      margin-top: var(--md-spacing-lg);
-      text-align: center;
-    }
-    
-    .login-forgot a {
-      color: var(--md-primary);
+    .forgot a {
+      color: var(--primary-color);
       text-decoration: none;
-      font-size: var(--md-font-size-body2);
-      transition: color var(--md-transition-fast);
     }
-    
-    .login-forgot a:hover {
-      color: var(--md-primary-dark);
-      text-decoration: underline;
-    }
-    
-    .login-error {
-      background-color: rgba(176, 0, 32, 0.1);
-      color: var(--md-error);
-      padding: var(--md-spacing-md);
-      border-radius: var(--md-radius-sm);
-      border-left: 4px solid var(--md-error);
-      margin-bottom: var(--md-spacing-lg);
-      font-size: var(--md-font-size-body2);
-      text-align: left;
-    }
-    
-    /* Welcome animation */
-    .login-card {
-      animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    
-    @keyframes fadeInUp {
-      from {
-        opacity: 0;
-        transform: translateY(30px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-    
-    /* Responsive adjustments */
-    @media (max-width: 480px) {
-      .login-card {
-        padding: var(--md-spacing-xl);
-        margin: var(--md-spacing-sm);
-      }
+    .forgot a:hover { text-decoration: underline; }
+    .error {
+      color: #e00;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
     }
   </style>
 </head>
 <body>
-  <div class="md-card login-card md-elevation-2">
-    <div class="login-logo">
-      <img src="/images/logo.jpg" alt="Engesense Logo">
+  <div class="login-container">
+    <div class="logo">
+      <img src="/images/logo.jpg" alt="Logo">
     </div>
 
     <% if (error) { %>
-      <div class="login-error">
-        <strong>Authentication Error:</strong> <%= error %>
-      </div>
+      <div class="error"><%= error %></div>
     <% } %>
 
-    <h1 class="md-headline-4 login-title">Welcome Back</h1>
-    
-    <form method="POST" action="/login" class="login-form">
-      <div class="login-input-group">
-        <label for="username" class="md-input-label">Username</label>
+    <h2>Welcome Back</h2>
+    <form method="POST" action="/login">
+      <div class="input-group">
+        <label for="username">Username</label>
         <input
           id="username"
           name="username"
           type="text"
-          class="md-input"
           placeholder="Enter your username"
           required
-          autocomplete="username"
         />
       </div>
-      
-      <div class="login-input-group">
-        <label for="password" class="md-input-label">Password</label>
+      <div class="input-group">
+        <label for="password">Password</label>
         <input
           id="password"
           name="password"
           type="password"
-          class="md-input"
           placeholder="Enter your password"
           required
-          autocomplete="current-password"
         />
       </div>
-      
-      <button type="submit" class="md-button md-button-filled md-button-large login-button">
-        Log In
-      </button>
+      <button type="submit" class="btn">Log In</button>
     </form>
 
-    <div class="login-forgot">
+    <div class="forgot">
       <a href="/forgot-password">Forgot your password?</a>
     </div>
   </div>
-
-  <!-- Theme System -->
-  <script src="/css/theme-system.js"></script>
 </body>
 </html>
