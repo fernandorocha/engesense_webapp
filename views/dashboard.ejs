@@ -622,23 +622,33 @@
       });
     }
 
-    // Initialize dropdowns
+    // Initialize dropdowns with improved state management
     const bucketsDropdownControls = initializeDropdown(bucketsDropdown, () => {
       const checkboxes = bucketsDropdown.querySelectorAll('input[type="checkbox"]:checked');
-      selectedBuckets = Array.from(checkboxes).map(cb => cb.value);
-      updateDropdownText(bucketsDropdown, getAllBuckets(), selectedBuckets);
-      updateCsvFields();
-      loadMeasurements();
+      const newSelectedBuckets = Array.from(checkboxes).map(cb => cb.value);
+      
+      // Only update if the selection actually changed to avoid unnecessary API calls
+      if (JSON.stringify(newSelectedBuckets) !== JSON.stringify(selectedBuckets)) {
+        selectedBuckets = newSelectedBuckets;
+        updateDropdownText(bucketsDropdown, getAllBuckets(), selectedBuckets);
+        updateCsvFields();
+        loadMeasurements();
+      }
     });
 
-    // Define the measurements onChange handler as a function so we can call it programmatically
+    // Define the measurements onChange handler with improved state management
     function onMeasurementsChange() {
       const checkboxes = measurementsDropdown.querySelectorAll('input[type="checkbox"]:checked');
-      selectedMeasurements = Array.from(checkboxes).map(cb => cb.value);
-      updateDropdownText(measurementsDropdown, getAllMeasurements(), selectedMeasurements, measurementDisplayFormatter);
-      updateCsvFields();
-      if (selectedMeasurements.length > 0) {
-        loadAndRender();
+      const newSelectedMeasurements = Array.from(checkboxes).map(cb => cb.value);
+      
+      // Only update if the selection actually changed to avoid unnecessary API calls
+      if (JSON.stringify(newSelectedMeasurements) !== JSON.stringify(selectedMeasurements)) {
+        selectedMeasurements = newSelectedMeasurements;
+        updateDropdownText(measurementsDropdown, getAllMeasurements(), selectedMeasurements, measurementDisplayFormatter);
+        updateCsvFields();
+        if (selectedMeasurements.length > 0) {
+          loadAndRender();
+        }
       }
     }
     
@@ -657,21 +667,17 @@
         
         if (!res.ok) {
           console.error('Failed to load buckets: API returned error');
-          
-          // TODO: Remove this test mock data - it's for testing dropdown functionality without InfluxDB
-          console.log('Using mock bucket data for testing...');
-          allBuckets = ['test-bucket-1', 'test-bucket-2', 'sensor-data'];
+          // When buckets fail to load, clear state and ensure dropdown is properly initialized
+          allBuckets = [];
           selectedBuckets = [];
-          populateDropdown(bucketsDropdown, allBuckets, selectedBuckets);
-          updateDropdownText(bucketsDropdown, allBuckets, selectedBuckets);
+          populateDropdown(bucketsDropdown, [], []);
+          updateDropdownText(bucketsDropdown, [], []);
           
-          // Auto-select first bucket for testing
-          if (allBuckets.length > 0 && selectedBuckets.length === 0) {
-            selectedBuckets = [allBuckets[0]];
-            populateDropdown(bucketsDropdown, allBuckets, selectedBuckets);
-            updateDropdownText(bucketsDropdown, allBuckets, selectedBuckets);
-            await loadMeasurements();
-          }
+          // Clear measurements when buckets fail to load
+          allMeasurements = [];
+          selectedMeasurements = [];
+          populateDropdown(measurementsDropdown, [], []);
+          updateDropdownText(measurementsDropdown, [], [], measurementDisplayFormatter);
           return;
         }
         
@@ -697,6 +703,7 @@
           selectedBuckets = [allBuckets[0]];
           populateDropdown(bucketsDropdown, allBuckets, selectedBuckets);
           updateDropdownText(bucketsDropdown, allBuckets, selectedBuckets);
+          updateCsvFields(); // Ensure CSV fields are updated when auto-selecting
           await loadMeasurements();
         }
       } catch (err) {
@@ -728,28 +735,11 @@
         
         if (!res.ok) {
           console.error('Failed to load measurements: API returned error');
-          
-          // TODO: Remove this test mock data - it's for testing dropdown functionality without InfluxDB
-          console.log('Using mock measurement data for testing...', selectedBuckets);
-          const mockMeasurements = [];
-          selectedBuckets.forEach(bucket => {
-            mockMeasurements.push(`${bucket}:temperature`);
-            mockMeasurements.push(`${bucket}:humidity`);
-            mockMeasurements.push(`${bucket}:pressure`);
-          });
-          
-          allMeasurements = mockMeasurements;
-          selectedMeasurements = selectedMeasurements.filter(m => allMeasurements.includes(m));
-          
-          if (selectedMeasurements.length === 0 && allMeasurements.length > 0) {
-            selectedMeasurements = [allMeasurements[0]];
-          }
-          
-          populateDropdown(measurementsDropdown, allMeasurements, selectedMeasurements, measurementDisplayFormatter);
-          updateDropdownText(measurementsDropdown, allMeasurements, selectedMeasurements, measurementDisplayFormatter);
-          
-          // Trigger chart update if measurements are selected
-          onMeasurementsChange();
+          // When measurements fail to load, clear measurements and ensure dropdown is properly updated
+          allMeasurements = [];
+          selectedMeasurements = [];
+          populateDropdown(measurementsDropdown, [], []);
+          updateDropdownText(measurementsDropdown, [], [], measurementDisplayFormatter);
           return;
         }
         
@@ -780,9 +770,11 @@
         populateDropdown(measurementsDropdown, allMeasurements, selectedMeasurements, measurementDisplayFormatter);
         updateDropdownText(measurementsDropdown, allMeasurements, selectedMeasurements, measurementDisplayFormatter);
         
-        // Ensure the measurements dropdown state is synchronized and chart/stats are updated
-        // This fixes the issue where auto-selected measurements don't trigger chart updates
-        onMeasurementsChange();
+        // Update CSV fields and trigger chart update when measurements are available
+        updateCsvFields();
+        if (selectedMeasurements.length > 0) {
+          loadAndRender();
+        }
       } catch (err) {
         console.error('Failed to load measurements:', err);
         allMeasurements = [];
@@ -1075,42 +1067,7 @@
         const res = await fetch(url);
         
         if (!res.ok) {
-          console.log('API call failed, using mock data for testing...');
-          
-          // TODO: Remove this test mock data - it's for testing dropdown functionality without InfluxDB
-          const mockReadings = [];
-          const now = new Date();
-          selectedMeasurements.forEach((measurement, measurementIndex) => {
-            for (let i = 0; i < 10; i++) {
-              const timestamp = new Date(now.getTime() - i * 60000).toISOString(); // Every minute
-              const baseValue = 20 + measurementIndex * 10;
-              const value = baseValue + Math.sin(i * 0.5) * 5 + Math.random() * 2;
-              
-              const [bucket, measurementName] = measurement.includes(':') 
-                ? measurement.split(':', 2) 
-                : ['unknown', measurement];
-                
-              mockReadings.push({
-                timestamp,
-                value: value.toFixed(2),
-                bucket: bucket,
-                measurement: measurementName
-              });
-            }
-          });
-          
-          const data = { readings: mockReadings };
-          const readings = data.readings || [];
-          
-          // Continue with normal processing...
-          if (readings.length === 0) {
-            showNoDataNotification();
-            return;
-          }
-          
-          // Process the mock data the same way...
-          processReadings(readings);
-          return;
+          throw new Error(`API returned ${res.status}: ${res.statusText}`);
         }
         
         const data = await res.json();
