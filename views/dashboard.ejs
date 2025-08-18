@@ -489,6 +489,8 @@
   <!-- Flatpickr & Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Fallback chart implementation when Chart.js is not available -->
+  <script src="/js/fallback-chart.js"></script>
 
   <script>
     // Elements
@@ -788,6 +790,44 @@
       if (excelStop) excelStop.value = stop || '';
     }
 
+    // Show notification when no data is found
+    function showNoDataNotification() {
+      const chartContainer = document.querySelector('.chart-card');
+      chartContainer.innerHTML = `
+        <div style="text-align: center; padding: var(--md-spacing-xl);">
+          <div style="color: var(--md-on-surface-variant); font-size: var(--md-font-size-h6); margin-bottom: var(--md-spacing-md);">
+            📊 No Data Available
+          </div>
+          <p style="color: var(--md-on-surface-variant); font-size: var(--md-font-size-body1); margin: 0;">
+            No sensor data was found for the selected time range and measurements.
+          </p>
+        </div>
+      `;
+      
+      // Clear statistics table
+      const statsTable = document.getElementById('stats-table').querySelector('tbody');
+      statsTable.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--md-on-surface-variant);">No data available</td></tr>';
+    }
+
+    // Show error notification
+    function showErrorNotification(message) {
+      const chartContainer = document.querySelector('.chart-card');
+      chartContainer.innerHTML = `
+        <div style="text-align: center; padding: var(--md-spacing-xl);">
+          <div style="color: var(--md-error); font-size: var(--md-font-size-h6); margin-bottom: var(--md-spacing-md);">
+            ⚠️ Unable to Load Data
+          </div>
+          <p style="color: var(--md-on-surface-variant); font-size: var(--md-font-size-body1); margin: 0;">
+            ${message}
+          </p>
+        </div>
+      `;
+      
+      // Clear statistics table
+      const statsTable = document.getElementById('stats-table').querySelector('tbody');
+      statsTable.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--md-error);">Unable to load data</td></tr>';
+    }
+
     // Toggle Modes
     btnRel.onclick = () => {
       btnRel.classList.remove('md-button-outlined');
@@ -894,7 +934,26 @@
 
       try {
         const res = await fetch(url);
-        const { readings } = await res.json();
+        
+        if (!res.ok) {
+          throw new Error(`API returned ${res.status}: ${res.statusText}`);
+        }
+        
+        const data = await res.json();
+        
+        // Check if there's an error in the response
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        
+        const readings = data.readings || [];
+        
+        // Check if no data was returned
+        if (readings.length === 0) {
+          // Show no data notification
+          showNoDataNotification();
+          return;
+        }
 
         // Group readings by bucket:measurement for charting
         const datasetsByMeasurement = {};
@@ -978,6 +1037,26 @@
               }
             });
           }
+        } else if (typeof FallbackChart !== 'undefined') {
+          // Use fallback chart implementation
+          if (chart) {
+            chart.data.labels = labels;
+            chart.data.datasets = datasets;
+            chart.update();
+          } else {
+            const ctx = document.getElementById('sensorChart').getContext('2d');
+            chart = new FallbackChart(ctx, {
+              type: 'line',
+              data: {
+                labels,
+                datasets
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false
+              }
+            });
+          }
         } else {
           // Display message when Chart.js is not available
           const chartContainer = document.querySelector('.chart-card');
@@ -1011,6 +1090,7 @@
 
       } catch (err) {
         console.error('Failed to load sensor data:', err);
+        showErrorNotification(err.message || 'Failed to load sensor data');
       }
     }
 
