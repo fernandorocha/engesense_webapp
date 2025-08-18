@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Energy Dashboard</title>
+  <title>Engesense - Energy Dashboard</title>
+  
+  <!-- Google Fonts - Roboto -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 
   <!-- Flatpickr CSS for the calendar input -->
   <link
@@ -13,270 +18,350 @@
     rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css"
   />
+  
+  <!-- Material Design System -->
+  <link rel="stylesheet" href="/css/design-system.css">
 
   <style>
-    :root {
-      --primary-color: #0044cc;
-      --accent-color: #0066ff;
-      --bg-light: #f5f7fa;
-      --text-color: #333;
-      --shadow: rgba(0, 0, 0, 0.1);
-    }
-
-    /* Reset & base */
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* Dashboard-specific styles that complement the Material Design system */
     body {
-      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-      background: var(--bg-light);
-      color: var(--text-color);
       display: flex;
       flex-direction: column;
       min-height: 100vh;
     }
 
-    /* Header */
-    header {
-      background: #fff;
-      padding: 1rem 2rem;
+    /* Header styling with Material Design */
+    .dashboard-header {
+      background-color: var(--md-surface);
+      border-bottom: 1px solid var(--md-outline);
+      padding: var(--md-spacing-md) var(--md-spacing-lg);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid #e0e0e0;
-      box-shadow: 0 2px 4px var(--shadow);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--md-shadow-1);
     }
     
-    .header-left {
+    .header-content {
       display: flex;
       align-items: center;
-      gap: 1rem;
+      gap: var(--md-spacing-lg);
     }
     
-    .logo img {
+    .header-logo img {
       width: 60px;
       height: auto;
+      border-radius: var(--md-radius-sm);
     }
     
     .welcome-text {
-      color: var(--primary-color);
-      font-size: 1.5rem;
-      font-weight: 600;
-    }
-    
-    header form button {
-      background: var(--primary-color);
-      color: white;
-      border: none;
-      padding: 0.5rem 1rem;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-    
-    header form button:hover {
-      background: var(--accent-color);
+      color: var(--md-primary);
+      font-size: var(--md-font-size-h5);
+      font-weight: var(--md-font-weight-medium);
+      margin: 0;
     }
 
     /* Controls Section */
-    .controls {
+    .controls-section {
+      background-color: var(--md-surface);
+      border-bottom: 1px solid var(--md-outline);
+      padding: var(--md-spacing-lg);
       display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 1rem 2rem;
-      background: white;
-      border-bottom: 1px solid #e0e0e0;
       flex-wrap: wrap;
-      box-shadow: 0 1px 3px var(--shadow);
-    }
-    .btn {
-      background: var(--primary-color);
-      color: white;
-      border: none;
-      padding: 0.5rem 0.75rem;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .btn:hover { background: var(--accent-color); }
-    .btn.active { background: #003399; }
-
-    #relative-controls button { font-size: 0.9rem; }
-    #rangePicker {
-      padding: 0.5rem;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      width: 220px;
-      font-size: 0.95rem;
-      display: none;
-    }
-
-    /* Chart Container */
-    #chart-container {
-      flex: 1;
-      padding: 1rem 2rem;
-      background: white;
-      display: flex;
-      justify-content: center;
+      gap: var(--md-spacing-md);
       align-items: center;
-      margin: 1rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px var(--shadow);
-    }
-    #sensorChart {
-      width: 100%;
-      /*max-width: 1000px;*/
-      height: 600px;
+      box-shadow: var(--md-shadow-1);
     }
 
-    /* Time Range Controls Section */
-    .time-range-section {
+    .control-group {
       display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.75rem;
-      border: 2px solid #e0e0e0;
-      border-radius: 8px;
-      background: #f8f9fa;
-      margin-left: 1rem;
-    }
-    .time-range-section .section-label {
-      font-weight: 600;
-      color: var(--primary-color);
-      margin-right: 0.5rem;
-      font-size: 0.9rem;
-    }
-    .refresh-btn {
-      background: #28a745;
-      color: white;
-      border: none;
-      padding: 0.5rem 0.75rem;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background 0.2s;
-      font-size: 0.9rem;
-      margin-left: 0.5rem;
-    }
-    .refresh-btn:hover {
-      background: #218838;
+      flex-direction: column;
+      gap: var(--md-spacing-xs);
     }
 
-    /* Custom dropdown with checkboxes */
-    .dropdown-section {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin-right: 1rem;
+    .control-label {
+      font-size: var(--md-font-size-body2);
+      font-weight: var(--md-font-weight-medium);
+      color: var(--md-on-surface-variant);
+      margin-bottom: var(--md-spacing-xs);
     }
-    .dropdown-section label {
-      font-weight: 500;
-      min-width: fit-content;
-    }
-    .custom-dropdown {
+
+    /* Dropdown styling */
+    .dropdown-container {
       position: relative;
       min-width: 200px;
       max-width: 300px;
     }
+
     .dropdown-trigger {
-      padding: 0.5rem;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 0.95rem;
-      background: white;
+      width: 100%;
+      padding: var(--md-spacing-md);
+      border: 1px solid var(--md-outline);
+      border-radius: var(--md-radius-sm);
+      background-color: var(--md-surface);
+      color: var(--md-on-surface);
       cursor: pointer;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      min-height: 40px;
+      transition: all var(--md-transition-fast);
+      font-family: var(--md-font-family);
+      font-size: var(--md-font-size-body1);
     }
+
+    .dropdown-trigger:hover {
+      border-color: var(--md-primary);
+      background-color: var(--md-surface-variant);
+    }
+
     .dropdown-trigger:focus {
       outline: none;
-      border-color: var(--primary-color);
-      box-shadow: 0 0 0 2px rgba(0, 68, 204, 0.2);
+      border-color: var(--md-primary);
+      box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.12);
     }
-    .dropdown-trigger:hover {
-      border-color: var(--accent-color);
-    }
-    .dropdown-arrow {
-      margin-left: 0.5rem;
-      transition: transform 0.2s;
-    }
-    .dropdown-trigger.open .dropdown-arrow {
-      transform: rotate(180deg);
-    }
+
     .dropdown-content {
       position: absolute;
       top: 100%;
       left: 0;
       right: 0;
-      background: white;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      box-shadow: 0 4px 8px var(--shadow);
+      background-color: var(--md-surface);
+      border: 1px solid var(--md-outline);
+      border-radius: var(--md-radius-sm);
+      box-shadow: var(--md-shadow-2);
       z-index: 1000;
       max-height: 250px;
       overflow-y: auto;
+      margin-top: var(--md-spacing-xs);
       display: none;
     }
+
     .dropdown-content.open {
       display: block;
     }
+
     .dropdown-item {
-      padding: 0.5rem;
+      padding: var(--md-spacing-md);
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: var(--md-spacing-sm);
+      transition: background-color var(--md-transition-fast);
     }
+
     .dropdown-item:hover {
-      background: #f5f5f5;
+      background-color: var(--md-surface-variant);
     }
-    .dropdown-item input[type="checkbox"] {
-      margin: 0;
-    }
-    .dropdown-selected-count {
-      color: #666;
-      font-size: 0.9rem;
-    }
-    
-    /* Export section styles */
-    .export-section {
+
+    /* Time Range Controls */
+    .time-range-group {
       display: flex;
-      gap: 0.5rem;
+      align-items: center;
+      gap: var(--md-spacing-sm);
+      padding: var(--md-spacing-md);
+      background-color: var(--md-surface-variant);
+      border-radius: var(--md-radius-md);
+      border: 1px solid var(--md-outline-variant);
+    }
+
+    .time-mode-buttons {
+      display: flex;
+      gap: var(--md-spacing-xs);
+    }
+
+    .time-quick-buttons {
+      display: flex;
+      gap: var(--md-spacing-xs);
+      flex-wrap: wrap;
+    }
+
+    #rangePicker {
+      display: none;
+      min-width: 220px;
+      padding: var(--md-spacing-sm);
+      border: 1px solid var(--md-outline);
+      border-radius: var(--md-radius-sm);
+      background-color: var(--md-surface);
+      color: var(--md-on-surface);
+      font-family: var(--md-font-family);
+    }
+
+    /* Export section */
+    .export-group {
+      display: flex;
+      gap: var(--md-spacing-sm);
       align-items: center;
     }
-    .export-form {
-      display: inline-block;
+
+    /* Chart Container */
+    .chart-section {
+      flex: 1;
+      padding: var(--md-spacing-lg);
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
-    .export-btn {
-      font-size: 0.9rem;
-      padding: 0.6rem 1rem;
+
+    .chart-card {
+      width: 100%;
+      max-width: 1200px;
+      padding: var(--md-spacing-xl);
+      min-height: 600px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
-    .excel-btn {
-      background: #217346;
+
+    #sensorChart {
+      width: 100%;
+      height: 600px;
     }
-    .excel-btn:hover {
-      background: #1b5d38;
+
+    /* Statistics Section */
+    .stats-section {
+      padding: 0 var(--md-spacing-lg) var(--md-spacing-lg);
+    }
+
+    .stats-card {
+      padding: var(--md-spacing-xl);
+    }
+
+    .stats-title {
+      color: var(--md-primary);
+      margin-bottom: var(--md-spacing-lg);
+      font-size: var(--md-font-size-h6);
+      font-weight: var(--md-font-weight-medium);
+    }
+
+    .stats-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--md-font-size-body2);
+    }
+
+    .stats-table th {
+      background-color: var(--md-surface-variant);
+      color: var(--md-primary);
+      padding: var(--md-spacing-md);
+      text-align: left;
+      font-weight: var(--md-font-weight-medium);
+      border-bottom: 2px solid var(--md-outline);
+    }
+
+    .stats-table td {
+      padding: var(--md-spacing-md);
+      border-bottom: 1px solid var(--md-outline-variant);
+    }
+
+    .stats-table th:not(:first-child),
+    .stats-table td:not(:first-child) {
+      text-align: right;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .controls-section {
+        padding: var(--md-spacing-md);
+        gap: var(--md-spacing-sm);
+      }
+
+      .control-group {
+        width: 100%;
+      }
+
+      .dropdown-container {
+        min-width: unset;
+        width: 100%;
+      }
+
+      .time-range-group {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--md-spacing-md);
+        width: 100%;
+      }
+
+      .time-quick-buttons {
+        justify-content: center;
+      }
+
+      .export-group {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .chart-card {
+        padding: var(--md-spacing-lg);
+        min-height: 400px;
+      }
+
+      #sensorChart {
+        height: 400px;
+      }
+
+      .header-content {
+        gap: var(--md-spacing-md);
+      }
+
+      .welcome-text {
+        font-size: var(--md-font-size-body1);
+      }
+    }
+
+    @media (max-width: 480px) {
+      .dashboard-header {
+        padding: var(--md-spacing-sm) var(--md-spacing-md);
+      }
+
+      .controls-section {
+        padding: var(--md-spacing-sm);
+      }
+
+      .time-quick-buttons {
+        gap: var(--md-spacing-xs);
+      }
+
+      .chart-card {
+        padding: var(--md-spacing-md);
+      }
     }
   </style>
 </head>
 <body>
-
-  <header>
-    <div class="header-left">
-      <div class="logo">
-        <img src="/images/logo.jpg" alt="Company Logo">
+  <!-- Header -->
+  <header class="dashboard-header">
+    <div class="header-content">
+      <div class="header-logo">
+        <img src="/images/logo.jpg" alt="Engesense Logo">
       </div>
       <h1 class="welcome-text">Welcome, <%= user.username %> (<%= user.role %>)</h1>
     </div>
-    <form method="POST" action="/logout">
-      <button type="submit">Logout</button>
-    </form>
+    
+    <div style="display: flex; align-items: center; gap: var(--md-spacing-md);">
+      <% if (user.role === 'admin') { %>
+        <a href="/admin/users" class="md-button md-button-outlined md-button-small">
+          <span class="md-icon md-icon-sm">👥</span>
+          Manage Users
+        </a>
+      <% } %>
+      
+      <form method="POST" action="/logout">
+        <button type="submit" class="md-button md-button-text">
+          <span class="md-icon md-icon-sm">🚪</span>
+          Logout
+        </button>
+      </form>
+    </div>
   </header>
 
-  <div class="controls">
-    <!-- Bucket and Measurement Selection -->
-    <div class="dropdown-section">
-      <label for="bucketsSelect">Buckets:</label>
-      <div class="custom-dropdown" id="bucketsDropdown">
+  <!-- Controls Section -->
+  <div class="controls-section">
+    <!-- Bucket Selection -->
+    <div class="control-group">
+      <label class="control-label">Data Sources</label>
+      <div class="dropdown-container" id="bucketsDropdown">
         <div class="dropdown-trigger" tabindex="0">
           <span class="dropdown-text">Loading buckets...</span>
           <span class="dropdown-arrow">▼</span>
@@ -287,9 +372,10 @@
       </div>
     </div>
     
-    <div class="dropdown-section">
-      <label for="measurementsSelect">Measurements:</label>
-      <div class="custom-dropdown" id="measurementsDropdown">
+    <!-- Measurement Selection -->
+    <div class="control-group">
+      <label class="control-label">Measurements</label>
+      <div class="dropdown-container" id="measurementsDropdown">
         <div class="dropdown-trigger" tabindex="0">
           <span class="dropdown-text">Select buckets first</span>
           <span class="dropdown-arrow">▼</span>
@@ -300,84 +386,105 @@
       </div>
     </div>
 
-    <!-- Time Range Controls Section -->
-    <div class="time-range-section">
-      <span class="section-label">Time Range:</span>
-      
-      <!-- Mode toggles -->
-      <button id="btn-relative" class="btn active">Relative</button>
-      <button id="btn-absolute" class="btn">Calendar</button>
+    <!-- Time Range Controls -->
+    <div class="control-group">
+      <label class="control-label">Time Range</label>
+      <div class="time-range-group">
+        <!-- Mode toggles -->
+        <div class="time-mode-buttons">
+          <button id="btn-relative" class="md-button md-button-filled md-button-small">Relative</button>
+          <button id="btn-absolute" class="md-button md-button-outlined md-button-small">Calendar</button>
+        </div>
 
-      <!-- Relative-range quick buttons -->
-      <div id="relative-controls">
-        <button class="btn" data-range="-5m">5 min</button>
-        <button class="btn" data-range="-15m">15 min</button>
-        <button class="btn" data-range="-30m">30 min</button>
-        <button class="btn" data-range="-1h">1 hour</button>
-        <button class="btn" data-range="-6h">6 hours</button>
-        <button class="btn" data-range="-12h">12 hours</button>
-        <button class="btn" data-range="-1d">1 day</button>
+        <!-- Relative-range quick buttons -->
+        <div id="relative-controls" class="time-quick-buttons">
+          <button class="md-button md-button-outlined md-button-small" data-range="-5m">5 min</button>
+          <button class="md-button md-button-outlined md-button-small" data-range="-15m">15 min</button>
+          <button class="md-button md-button-outlined md-button-small" data-range="-30m">30 min</button>
+          <button class="md-button md-button-outlined md-button-small" data-range="-1h">1 hour</button>
+          <button class="md-button md-button-outlined md-button-small" data-range="-6h">6 hours</button>
+          <button class="md-button md-button-outlined md-button-small" data-range="-12h">12 hours</button>
+          <button class="md-button md-button-outlined md-button-small" data-range="-1d">1 day</button>
+        </div>
+
+        <!-- Flatpickr date-range input -->
+        <input
+          id="rangePicker"
+          type="text"
+          placeholder="Select date & time range"
+          readonly
+        />
+        
+        <!-- Refresh button -->
+        <button id="refresh-btn" class="md-button md-button-filled md-button-small" style="background-color: var(--md-success);">
+          <span class="md-icon md-icon-sm">🔄</span>
+          Refresh
+        </button>
       </div>
-
-      <!-- Flatpickr date-range input -->
-      <input
-        id="rangePicker"
-        type="text"
-        placeholder="Select date & time range"
-        readonly
-      />
-      
-      <!-- Refresh button -->
-      <button id="refresh-btn" class="refresh-btn">🔄 Refresh</button>
     </div>
 
     <!-- Export section -->
-    <div class="export-section">
-      <form method="GET" action="/export" class="export-form">
-        <input type="hidden" name="range" id="csvRange" value="">
-        <input type="hidden" name="start" id="csvStart" value="">
-        <input type="hidden" name="stop" id="csvStop" value="">
-        <input type="hidden" name="buckets" id="csvBuckets" value="">
-        <input type="hidden" name="measurements" id="csvMeasurements" value="">
-        <input type="hidden" name="format" value="csv">
-        <button type="submit" class="btn export-btn">📄 Download CSV</button>
-      </form>
-      
-      <form method="GET" action="/export" class="export-form">
-        <input type="hidden" name="range" id="excelRange" value="">
-        <input type="hidden" name="start" id="excelStart" value="">
-        <input type="hidden" name="stop" id="excelStop" value="">
-        <input type="hidden" name="buckets" id="excelBuckets" value="">
-        <input type="hidden" name="measurements" id="excelMeasurements" value="">
-        <input type="hidden" name="format" value="excel">
-        <button type="submit" class="btn export-btn excel-btn">📊 Download Excel</button>
-      </form>
+    <div class="control-group">
+      <label class="control-label">Export Data</label>
+      <div class="export-group">
+        <form method="GET" action="/export" class="export-form">
+          <input type="hidden" name="range" id="csvRange" value="">
+          <input type="hidden" name="start" id="csvStart" value="">
+          <input type="hidden" name="stop" id="csvStop" value="">
+          <input type="hidden" name="buckets" id="csvBuckets" value="">
+          <input type="hidden" name="measurements" id="csvMeasurements" value="">
+          <input type="hidden" name="format" value="csv">
+          <button type="submit" class="md-button md-button-outlined md-button-small">
+            <span class="md-icon md-icon-sm">📄</span>
+            CSV
+          </button>
+        </form>
+        
+        <form method="GET" action="/export" class="export-form">
+          <input type="hidden" name="range" id="excelRange" value="">
+          <input type="hidden" name="start" id="excelStart" value="">
+          <input type="hidden" name="stop" id="excelStop" value="">
+          <input type="hidden" name="buckets" id="excelBuckets" value="">
+          <input type="hidden" name="measurements" id="excelMeasurements" value="">
+          <input type="hidden" name="format" value="excel">
+          <button type="submit" class="md-button md-button-outlined md-button-small" style="color: var(--md-success); border-color: var(--md-success);">
+            <span class="md-icon md-icon-sm">📊</span>
+            Excel
+          </button>
+        </form>
+      </div>
     </div>
-   </div>
-
   </div>
 
-
-  <div id="chart-container">
-    <canvas id="sensorChart"></canvas>
+  <!-- Chart Section -->
+  <div class="chart-section">
+    <div class="md-card chart-card md-elevation-2">
+      <canvas id="sensorChart"></canvas>
+    </div>
   </div>
 
-  <div id="stats-container" style="padding: 1rem 2rem; background: white; margin: 1rem; border-radius: 8px; box-shadow: 0 2px 8px var(--shadow);">
-    <h3 style="color: var(--primary-color); margin-bottom: 1rem;">Statistics</h3>
-    <table id="stats-table" style="width:100%; border-collapse: collapse;">
-      <thead>
-        <tr>
-          <th style="border-bottom:1px solid #ccc; text-align:left; padding:0.5rem; color: var(--primary-color);">Measurement</th>
-          <th style="border-bottom:1px solid #ccc; text-align:right; padding:0.5rem; color: var(--primary-color);">Min</th>
-          <th style="border-bottom:1px solid #ccc; text-align:right; padding:0.5rem; color: var(--primary-color);">Avg</th>
-          <th style="border-bottom:1px solid #ccc; text-align:right; padding:0.5rem; color: var(--primary-color);">Max</th>
-        </tr>
-      </thead>
-      <tbody>
-        <!-- Stats rows will be inserted here -->
-      </tbody>
-    </table>
+  <!-- Statistics Section -->
+  <div class="stats-section">
+    <div class="md-card stats-card md-elevation-1">
+      <h3 class="stats-title">Statistics Summary</h3>
+      <table class="stats-table" id="stats-table">
+        <thead>
+          <tr>
+            <th>Measurement</th>
+            <th>Minimum</th>
+            <th>Average</th>
+            <th>Maximum</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Stats rows will be inserted here -->
+        </tbody>
+      </table>
+    </div>
   </div>
+
+  <!-- Scripts -->
+  <script src="/css/theme-system.js"></script>
 
   <!-- Flatpickr & Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -682,15 +789,19 @@
 
     // Toggle Modes
     btnRel.onclick = () => {
-      btnRel.classList.add('active');
-      btnAbs.classList.remove('active');
+      btnRel.classList.remove('md-button-outlined');
+      btnRel.classList.add('md-button-filled');
+      btnAbs.classList.remove('md-button-filled');
+      btnAbs.classList.add('md-button-outlined');
       relCtrls.style.display = 'flex';
       rangeInput.style.display = 'none';
       loadAndRender();
     };
     btnAbs.onclick = () => {
-      btnRel.classList.remove('active');
-      btnAbs.classList.add('active');
+      btnRel.classList.remove('md-button-filled');
+      btnRel.classList.add('md-button-outlined');
+      btnAbs.classList.remove('md-button-outlined');
+      btnAbs.classList.add('md-button-filled');
       relCtrls.style.display = 'none';
       rangeInput.style.display = 'inline-block';
     };
@@ -699,8 +810,12 @@
     relCtrls.querySelectorAll('[data-range]').forEach(btn => {
       btn.onclick = () => {
         currentRange = btn.dataset.range;
-        relCtrls.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
+        relCtrls.querySelectorAll('.md-button').forEach(b => {
+          b.classList.remove('md-button-filled');
+          b.classList.add('md-button-outlined');
+        });
+        btn.classList.remove('md-button-outlined');
+        btn.classList.add('md-button-filled');
         updateTimeFields(btn.dataset.range, '', '');
         loadAndRender();
       };
@@ -864,8 +979,8 @@
           }
         } else {
           // Display message when Chart.js is not available
-          const chartContainer = document.getElementById('chart-container');
-          chartContainer.innerHTML = '<p style="text-align: center; color: #666;">Chart display requires Chart.js library to be loaded.</p>';
+          const chartContainer = document.querySelector('.chart-card');
+          chartContainer.innerHTML = '<p style="text-align: center; color: var(--md-on-surface-variant); font-size: var(--md-font-size-body1);">Chart display requires Chart.js library to be loaded.</p>';
         }
 
         // --- Statistics Table ---
@@ -884,10 +999,10 @@
           }
           const row = document.createElement('tr');
           row.innerHTML = `
-            <td style="padding:0.5rem;">${label}</td>
-            <td style="padding:0.5rem; text-align:right;">${min.toFixed(2)}</td>
-            <td style="padding:0.5rem; text-align:right;">${avg.toFixed(2)}</td>
-            <td style="padding:0.5rem; text-align:right;">${max.toFixed(2)}</td>
+            <td>${label}</td>
+            <td>${min.toFixed(2)}</td>
+            <td>${avg.toFixed(2)}</td>
+            <td>${max.toFixed(2)}</td>
           `;
           statsTable.appendChild(row);
         });
