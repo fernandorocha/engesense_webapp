@@ -143,6 +143,14 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
   const queryApi = client.getQueryApi(organization);
   const queryMeasurements = measurements && measurements.length > 0 ? measurements : ['home_pt'];
 
+  // Strip bucket prefixes from measurements (format: "bucket:measurement" -> "measurement")
+  const cleanMeasurements = queryMeasurements.map(m => {
+    if (m.includes(':')) {
+      return m.split(':', 2)[1]; // Take the part after the first colon
+    }
+    return m;
+  });
+
   // Build the correct Flux range clause
   let rangeClause;
   if (start && stop) {
@@ -156,10 +164,10 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
     rangeClause = `|> range(start: ${range || '-1h'})`;
   }
 
-  // Build measurement filter
-  const measurementFilter = queryMeasurements.length === 1 
-    ? `r._measurement == "${queryMeasurements[0]}"` 
-    : `contains(value: r._measurement, set: [${queryMeasurements.map(m => `"${m}"`).join(', ')}])`;
+  // Build measurement filter using clean measurement names
+  const measurementFilter = cleanMeasurements.length === 1 
+    ? `r._measurement == "${cleanMeasurements[0]}"` 
+    : `contains(value: r._measurement, set: [${cleanMeasurements.map(m => `"${m}"`).join(', ')}])`;
 
   const readings = [];
   
@@ -223,7 +231,8 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
   logger.info('InfluxDB query completed', { 
     pointsReturned: limitedReadings.length,
     buckets: buckets,
-    measurements: queryMeasurements,
+    measurements: cleanMeasurements,
+    originalMeasurements: queryMeasurements,
     organization,
     limit
   });
