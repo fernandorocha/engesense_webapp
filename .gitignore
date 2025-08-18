@@ -5,3 +5,5 @@ test-data.sqlite
 *.log
 examples/
 cookies.txt
+test_export.js
+test_export_grouped.*
