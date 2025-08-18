@@ -143,12 +143,26 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
   const queryApi = client.getQueryApi(organization);
   const queryMeasurements = measurements && measurements.length > 0 ? measurements : ['home_pt'];
 
-  // Strip bucket prefixes from measurements (format: "bucket:measurement" -> "measurement")
-  const cleanMeasurements = queryMeasurements.map(m => {
+  // Group measurements by bucket to maintain bucket-measurement relationships
+  const bucketMeasurements = {};
+  
+  // If measurements include bucket prefixes (bucket:measurement), group them by bucket
+  queryMeasurements.forEach(m => {
     if (m.includes(':')) {
-      return m.split(':', 2)[1]; // Take the part after the first colon
+      const [bucket, measurement] = m.split(':', 2);
+      if (!bucketMeasurements[bucket]) {
+        bucketMeasurements[bucket] = [];
+      }
+      bucketMeasurements[bucket].push(measurement);
+    } else {
+      // If no bucket prefix, apply to all specified buckets
+      buckets.forEach(bucket => {
+        if (!bucketMeasurements[bucket]) {
+          bucketMeasurements[bucket] = [];
+        }
+        bucketMeasurements[bucket].push(m);
+      });
     }
-    return m;
   });
 
   // Build the correct Flux range clause
@@ -164,16 +178,27 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
     rangeClause = `|> range(start: ${range || '-1h'})`;
   }
 
-  // Build measurement filter using clean measurement names
-  const measurementFilter = cleanMeasurements.length === 1 
-    ? `r._measurement == "${cleanMeasurements[0]}"` 
-    : `contains(value: r._measurement, set: [${cleanMeasurements.map(m => `"${m}"`).join(', ')}])`;
-
   const readings = [];
   
   try {
-    // Query each bucket and combine results
+    // Query each bucket with its specific measurements
     for (const bucket of buckets) {
+      const bucketSpecificMeasurements = bucketMeasurements[bucket];
+      
+      // Skip buckets that have no measurements to query
+      if (!bucketSpecificMeasurements || bucketSpecificMeasurements.length === 0) {
+        logger.debug('Skipping bucket with no measurements', { bucket });
+        continue;
+      }
+
+      // Remove duplicates from measurements for this bucket
+      const uniqueMeasurements = [...new Set(bucketSpecificMeasurements)];
+
+      // Build measurement filter for this specific bucket
+      const measurementFilter = uniqueMeasurements.length === 1 
+        ? `r._measurement == "${uniqueMeasurements[0]}"` 
+        : `contains(value: r._measurement, set: [${uniqueMeasurements.map(m => `"${m}"`).join(', ')}])`;
+
       const flux = `
         from(bucket: "${bucket}")
           ${rangeClause}
@@ -182,7 +207,12 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
           |> limit(n: ${Math.ceil(limit / buckets.length)})
       `;
       
-      logger.debug('Executing Flux query', { query: flux.trim(), bucket, organization });
+      logger.debug('Executing Flux query', { 
+        query: flux.trim(), 
+        bucket, 
+        measurements: uniqueMeasurements,
+        organization 
+      });
 
       await new Promise((resolve, reject) => {
         queryApi.queryRows(flux, {
@@ -204,6 +234,7 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
               error: err.message,
               query: flux.trim(),
               bucket,
+              measurements: uniqueMeasurements,
               organization
             });
             reject(err);
@@ -211,6 +242,7 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
           complete() {
             logger.debug('Bucket query completed', { 
               bucket,
+              measurements: uniqueMeasurements,
               organization,
               pointsReturned: readings.filter(r => r.bucket === bucket).length
             });
@@ -231,7 +263,7 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
   logger.info('InfluxDB query completed', { 
     pointsReturned: limitedReadings.length,
     buckets: buckets,
-    measurements: cleanMeasurements,
+    bucketMeasurements: bucketMeasurements,
     originalMeasurements: queryMeasurements,
     organization,
     limit

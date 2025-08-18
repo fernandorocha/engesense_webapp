@@ -745,16 +745,13 @@
         return;
       }
 
-      // Parse selectedMeasurements into buckets and measurements
+      // Use selectedMeasurements directly to preserve bucket:measurement relationships
+      // Extract buckets for the URL parameter, but send measurements with their bucket prefixes
       const bucketsSet = new Set();
-      const measurementsList = [];
       selectedMeasurements.forEach(val => {
         if (val.includes(':')) {
-          const [bucket, measurement] = val.split(':', 2);
+          const [bucket] = val.split(':', 2);
           bucketsSet.add(bucket);
-          measurementsList.push(measurement);
-        } else {
-          measurementsList.push(val);
         }
       });
       const bucketsArr = Array.from(bucketsSet);
@@ -765,7 +762,9 @@
       } else if (selectedBuckets.length > 0) {
         url += `&buckets=${encodeURIComponent(selectedBuckets.join(','))}`;
       }
-      url += `&measurements=${encodeURIComponent(measurementsList.join(','))}`;
+      
+      // Send measurements with bucket prefixes to maintain relationships
+      url += `&measurements=${encodeURIComponent(selectedMeasurements.join(','))}`;
 
       if (start && stop) {
         url += `&start=${encodeURIComponent(start)}&stop=${encodeURIComponent(stop)}`;
