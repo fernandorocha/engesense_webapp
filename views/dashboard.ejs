@@ -423,7 +423,14 @@
     function updateDropdownText(dropdownElement, items, selectedItems, displayFormatter = null) {
       const textElement = dropdownElement.querySelector('.dropdown-text');
       if (selectedItems.length === 0) {
-        textElement.textContent = items.length === 0 ? 'No items available' : 'Select items...';
+        // Special case for measurements dropdown when no buckets are selected
+        if (dropdownElement.id === 'measurementsDropdown' && getAllBuckets().length === 0) {
+          textElement.textContent = 'No buckets available';
+        } else if (dropdownElement.id === 'measurementsDropdown' && selectedBuckets.length === 0) {
+          textElement.textContent = 'Select buckets first';
+        } else {
+          textElement.textContent = items.length === 0 ? 'No items available' : 'Select items...';
+        }
       } else if (selectedItems.length === 1) {
         const displayText = displayFormatter ? displayFormatter(selectedItems[0]) : selectedItems[0];
         textElement.textContent = displayText;
@@ -503,7 +510,13 @@
         if (!res.ok) {
           console.error('Failed to load buckets: API returned error');
           allBuckets = [];
+          selectedBuckets = [];
           updateDropdownText(bucketsDropdown, [], []);
+          // Clear measurements when buckets fail to load
+          allMeasurements = [];
+          selectedMeasurements = [];
+          populateDropdown(measurementsDropdown, [], []);
+          updateDropdownText(measurementsDropdown, [], []);
           return;
         }
         
@@ -511,7 +524,13 @@
         allBuckets = data.buckets || [];
         
         if (allBuckets.length === 0) {
+          selectedBuckets = [];
           updateDropdownText(bucketsDropdown, [], []);
+          // Clear measurements when no buckets are available
+          allMeasurements = [];
+          selectedMeasurements = [];
+          populateDropdown(measurementsDropdown, [], []);
+          updateDropdownText(measurementsDropdown, [], []);
           return;
         }
         
@@ -528,7 +547,13 @@
       } catch (err) {
         console.error('Failed to load buckets:', err);
         allBuckets = [];
+        selectedBuckets = [];
         updateDropdownText(bucketsDropdown, [], []);
+        // Clear measurements when buckets fail to load
+        allMeasurements = [];
+        selectedMeasurements = [];
+        populateDropdown(measurementsDropdown, [], []);
+        updateDropdownText(measurementsDropdown, [], []);
       }
     }
 
@@ -536,8 +561,9 @@
     async function loadMeasurements() {
       if (selectedBuckets.length === 0) {
         allMeasurements = [];
+        selectedMeasurements = [];
         populateDropdown(measurementsDropdown, [], []);
-        updateDropdownText(measurementsDropdown, [], []);
+        updateDropdownText(measurementsDropdown, [], [], measurementDisplayFormatter);
         return;
       }
       
@@ -550,7 +576,7 @@
           allMeasurements = [];
           selectedMeasurements = [];
           populateDropdown(measurementsDropdown, [], []);
-          updateDropdownText(measurementsDropdown, [], []);
+          updateDropdownText(measurementsDropdown, [], [], measurementDisplayFormatter);
           return;
         }
         
@@ -566,7 +592,7 @@
         if (allMeasurements.length === 0) {
           selectedMeasurements = [];
           populateDropdown(measurementsDropdown, [], []);
-          updateDropdownText(measurementsDropdown, [], []);
+          updateDropdownText(measurementsDropdown, [], [], measurementDisplayFormatter);
           return;
         }
 
@@ -591,7 +617,7 @@
         allMeasurements = [];
         selectedMeasurements = [];
         populateDropdown(measurementsDropdown, [], []);
-        updateDropdownText(measurementsDropdown, [], []);
+        updateDropdownText(measurementsDropdown, [], [], measurementDisplayFormatter);
       }
     }
 
