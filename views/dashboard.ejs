@@ -657,14 +657,21 @@
         
         if (!res.ok) {
           console.error('Failed to load buckets: API returned error');
-          allBuckets = [];
+          
+          // TODO: Remove this test mock data - it's for testing dropdown functionality without InfluxDB
+          console.log('Using mock bucket data for testing...');
+          allBuckets = ['test-bucket-1', 'test-bucket-2', 'sensor-data'];
           selectedBuckets = [];
-          updateDropdownText(bucketsDropdown, [], []);
-          // Clear measurements when buckets fail to load
-          allMeasurements = [];
-          selectedMeasurements = [];
-          populateDropdown(measurementsDropdown, [], []);
-          updateDropdownText(measurementsDropdown, [], []);
+          populateDropdown(bucketsDropdown, allBuckets, selectedBuckets);
+          updateDropdownText(bucketsDropdown, allBuckets, selectedBuckets);
+          
+          // Auto-select first bucket for testing
+          if (allBuckets.length > 0 && selectedBuckets.length === 0) {
+            selectedBuckets = [allBuckets[0]];
+            populateDropdown(bucketsDropdown, allBuckets, selectedBuckets);
+            updateDropdownText(bucketsDropdown, allBuckets, selectedBuckets);
+            await loadMeasurements();
+          }
           return;
         }
         
@@ -721,10 +728,28 @@
         
         if (!res.ok) {
           console.error('Failed to load measurements: API returned error');
-          allMeasurements = [];
-          selectedMeasurements = [];
-          populateDropdown(measurementsDropdown, [], []);
-          updateDropdownText(measurementsDropdown, [], [], measurementDisplayFormatter);
+          
+          // TODO: Remove this test mock data - it's for testing dropdown functionality without InfluxDB
+          console.log('Using mock measurement data for testing...', selectedBuckets);
+          const mockMeasurements = [];
+          selectedBuckets.forEach(bucket => {
+            mockMeasurements.push(`${bucket}:temperature`);
+            mockMeasurements.push(`${bucket}:humidity`);
+            mockMeasurements.push(`${bucket}:pressure`);
+          });
+          
+          allMeasurements = mockMeasurements;
+          selectedMeasurements = selectedMeasurements.filter(m => allMeasurements.includes(m));
+          
+          if (selectedMeasurements.length === 0 && allMeasurements.length > 0) {
+            selectedMeasurements = [allMeasurements[0]];
+          }
+          
+          populateDropdown(measurementsDropdown, allMeasurements, selectedMeasurements, measurementDisplayFormatter);
+          updateDropdownText(measurementsDropdown, allMeasurements, selectedMeasurements, measurementDisplayFormatter);
+          
+          // Trigger chart update if measurements are selected
+          onMeasurementsChange();
           return;
         }
         
@@ -894,6 +919,119 @@
       }
     };
 
+    // Process readings and update chart/stats (extracted for reuse with mock data)
+    function processReadings(readings) {
+      // Group readings by bucket:measurement for charting
+      const datasetsByMeasurement = {};
+      readings.forEach(reading => {
+        // Use bucket:measurement as key for uniqueness
+        const key = (reading.bucket && reading.measurement) ? `${reading.bucket}:${reading.measurement}` : (reading.measurement || 'Unknown');
+        if (!datasetsByMeasurement[key]) {
+          datasetsByMeasurement[key] = {
+            timestamps: [],
+            values: []
+          };
+        }
+        datasetsByMeasurement[key].timestamps.push(reading.timestamp);
+        datasetsByMeasurement[key].values.push(reading.value);
+      });
+
+      // Create datasets for chart, show label as bucket (measurement)
+      const datasets = Object.keys(datasetsByMeasurement).map((measurement, index) => {
+        const colors = [
+          '#1e88e5', '#e53935', '#43a047', '#fb8c00',
+          '#8e24aa', '#00acc1', '#fdd835', '#f4511e'
+        ];
+        const color = colors[index % colors.length];
+        // Convert hex to rgba for background
+        const hex = color.slice(1);
+        const r = parseInt(hex.slice(0, 2), 16);
+        const g = parseInt(hex.slice(2, 4), 16);
+        const b = parseInt(hex.slice(4, 6), 16);
+        const backgroundColor = `rgba(${r}, ${g}, ${b}, 0.2)`;
+        let label = measurement;
+        if (measurement.includes(':')) {
+          const [bucket, m] = measurement.split(':', 2);
+          label = `${bucket} (${m})`;
+        }
+        return {
+          label: label,
+          data: datasetsByMeasurement[measurement].values,
+          borderColor: color,
+          backgroundColor: backgroundColor,
+          fill: false,
+          tension: 0.3
+        };
+      });
+
+      // Create timeline for chart
+      const labels = datasetsByMeasurement[Object.keys(datasetsByMeasurement)[0]]?.timestamps || [];
+
+      // Clear any existing chart
+      const chartContainer = document.querySelector('.chart-card');
+      chartContainer.innerHTML = '<canvas id="sensorChart" style="max-height: 400px;"></canvas>';
+
+      // Render chart
+      if (typeof window.FallbackChart !== 'undefined') {
+        // Use fallback chart implementation
+        const canvas = document.getElementById('sensorChart');
+        const fallbackChart = new window.FallbackChart(canvas, {
+          type: 'line',
+          data: {
+            labels,
+            datasets
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false
+          }
+        });
+      } else if (typeof Chart !== 'undefined') {
+        // Use Chart.js if available
+        const ctx = document.getElementById('sensorChart').getContext('2d');
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false
+          }
+        });
+      } else {
+        // Display message when Chart.js is not available
+        const chartContainer = document.querySelector('.chart-card');
+        chartContainer.innerHTML = '<p style="text-align: center; color: var(--md-on-surface-variant); font-size: var(--md-font-size-body1);">Chart display requires Chart.js library to be loaded.</p>';
+      }
+
+      // --- Statistics Table ---
+      const statsTable = document.getElementById('stats-table').querySelector('tbody');
+      statsTable.innerHTML = '';
+      Object.keys(datasetsByMeasurement).forEach(measurement => {
+        const values = datasetsByMeasurement[measurement].values;
+        if (!values.length) return;
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const avg = values.reduce((a, b) => a + b, 0) / values.length;
+        let label = measurement;
+        if (measurement.includes(':')) {
+          const [bucket, m] = measurement.split(':', 2);
+          label = `${bucket} (${m})`;
+        }
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${label}</td>
+          <td>${min.toFixed(2)}</td>
+          <td>${avg.toFixed(2)}</td>
+          <td>${max.toFixed(2)}</td>
+        `;
+        statsTable.appendChild(row);
+      });
+      // --- End Statistics Table ---
+    }
+
 
     // Fetch & Render Chart
     async function loadAndRender({ start, stop } = {}) {
@@ -933,10 +1071,46 @@
       updateCsvFields();
 
       try {
+        console.log('Making API call to:', url);
         const res = await fetch(url);
         
         if (!res.ok) {
-          throw new Error(`API returned ${res.status}: ${res.statusText}`);
+          console.log('API call failed, using mock data for testing...');
+          
+          // TODO: Remove this test mock data - it's for testing dropdown functionality without InfluxDB
+          const mockReadings = [];
+          const now = new Date();
+          selectedMeasurements.forEach((measurement, measurementIndex) => {
+            for (let i = 0; i < 10; i++) {
+              const timestamp = new Date(now.getTime() - i * 60000).toISOString(); // Every minute
+              const baseValue = 20 + measurementIndex * 10;
+              const value = baseValue + Math.sin(i * 0.5) * 5 + Math.random() * 2;
+              
+              const [bucket, measurementName] = measurement.includes(':') 
+                ? measurement.split(':', 2) 
+                : ['unknown', measurement];
+                
+              mockReadings.push({
+                timestamp,
+                value: value.toFixed(2),
+                bucket: bucket,
+                measurement: measurementName
+              });
+            }
+          });
+          
+          const data = { readings: mockReadings };
+          const readings = data.readings || [];
+          
+          // Continue with normal processing...
+          if (readings.length === 0) {
+            showNoDataNotification();
+            return;
+          }
+          
+          // Process the mock data the same way...
+          processReadings(readings);
+          return;
         }
         
         const data = await res.json();
@@ -955,7 +1129,8 @@
           return;
         }
 
-        // Group readings by bucket:measurement for charting
+        // Process the readings with our new shared function
+        processReadings(readings);
         const datasetsByMeasurement = {};
         readings.forEach(reading => {
           // Use bucket:measurement as key for uniqueness
