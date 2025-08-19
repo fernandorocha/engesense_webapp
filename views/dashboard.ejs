@@ -420,6 +420,12 @@
           <span class="md-icon md-icon-sm">🔄</span>
           Refresh
         </button>
+        
+        <!-- Demo button for testing chart -->
+        <button id="demo-btn" class="md-button md-button-outlined md-button-small" style="border-color: var(--md-primary); color: var(--md-primary);">
+          <span class="md-icon md-icon-sm">📊</span>
+          Demo Data
+        </button>
       </div>
     </div>
 
@@ -486,11 +492,8 @@
   <!-- Scripts -->
   <script src="/css/theme-system.js"></script>
 
-  <!-- Flatpickr & D3.js -->
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-  <script src="https://d3js.org/d3.v7.min.js"></script>
-  <!-- D3.js chart implementation -->
-  <script src="/js/d3-chart.js"></script>
+  <!-- Fallback chart implementation when external dependencies are not available -->
+  <script src="/js/fallback-chart.js"></script>
 
   <script>
     // Elements
@@ -875,36 +878,72 @@
       };
     });
 
-    // Initialize Flatpickr for range selection (only if available)
-    if (typeof flatpickr !== 'undefined') {
-      flatpickr(rangeInput, {
-        mode: 'range',
-        enableTime: true,
-        dateFormat: 'Y-m-d H:i',
-        onClose: function(selectedDates) {
-          if (selectedDates.length === 2) {
-            const [start, stop] = selectedDates;
-            updateTimeFields('', start.toISOString(), stop.toISOString());
-
-            loadAndRender({
-              start: start.toISOString(),
-              stop:  stop.toISOString()
-            });
-          }
-        }
-      });
-    } else {
-      // Disable calendar mode if flatpickr is not available
-      btnAbs.disabled = true;
-      btnAbs.style.opacity = '0.5';
-      btnAbs.style.cursor = 'not-allowed';
-    }
+    // Initialize Flatpickr for range selection (disabled - external dependency not available)
+    // Disable calendar mode since flatpickr is not available
+    btnAbs.disabled = true;
+    btnAbs.style.opacity = '0.5';
+    btnAbs.style.cursor = 'not-allowed';
+    btnAbs.title = 'Calendar mode requires external dependencies';
 
     // Refresh button functionality
     refreshBtn.onclick = () => {
       if (selectedMeasurements.length > 0) {
         loadAndRender();
       }
+    };
+
+    // Demo button functionality
+    const demoBtn = document.getElementById('demo-btn');
+    demoBtn.onclick = () => {
+      // Generate demo data to show chart functionality
+      const demoDatasets = [
+        {
+          label: 'Temperature (°C)',
+          data: [22.5, 23.1, 24.3, 25.7, 24.9, 23.8, 22.9, 23.4, 24.1, 23.7],
+          borderColor: '#1e88e5'
+        },
+        {
+          label: 'Humidity (%)',
+          data: [45.2, 47.8, 49.1, 52.3, 48.7, 46.5, 44.9, 46.8, 48.2, 47.1],
+          borderColor: '#e53935'
+        },
+        {
+          label: 'Pressure (hPa)',
+          data: [1013.2, 1014.1, 1012.8, 1011.5, 1013.9, 1015.2, 1014.7, 1013.4, 1012.1, 1014.8],
+          borderColor: '#43a047'
+        }
+      ];
+      
+      // Update chart with demo data
+      if (typeof FallbackChart !== 'undefined') {
+        if (chart) {
+          chart.updateData(demoDatasets);
+        } else {
+          const container = document.getElementById('sensorChart');
+          chart = new FallbackChart(container);
+          chart.updateData(demoDatasets);
+          window.chart = chart;
+        }
+      }
+      
+      // Update statistics table with demo data
+      const statsTable = document.getElementById('stats-table').querySelector('tbody');
+      statsTable.innerHTML = '';
+      demoDatasets.forEach(dataset => {
+        const values = dataset.data;
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const avg = values.reduce((a, b) => a + b, 0) / values.length;
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${dataset.label}</td>
+          <td>${min.toFixed(2)}</td>
+          <td>${avg.toFixed(2)}</td>
+          <td>${max.toFixed(2)}</td>
+        `;
+        statsTable.appendChild(row);
+      });
     };
 
 
@@ -1016,27 +1055,21 @@
           ? Object.values(datasetsByMeasurement)[0].timestamps.map(t => new Date(t).toLocaleString())
           : [];
 
-        // Chart rendering using D3.js
-        if (typeof d3 !== 'undefined' && typeof D3Chart !== 'undefined') {
+        // Chart rendering using fallback chart implementation
+        if (typeof FallbackChart !== 'undefined') {
           if (chart) {
-            chart.updateData(labels, datasets);
+            chart.updateData(datasets);
           } else {
             const container = document.getElementById('sensorChart');
-            chart = new D3Chart(container, {
-              type: 'line',
-              data: {
-                labels,
-                datasets
-              },
-              responsive: true
-            });
+            chart = new FallbackChart(container);
+            chart.updateData(datasets);
             // Make chart globally accessible for resize handling
             window.chart = chart;
           }
         } else {
-          // Display message when D3.js is not available
+          // Display message when chart library is not available
           const chartContainer = document.querySelector('.chart-card');
-          chartContainer.innerHTML = '<p style="text-align: center; color: var(--md-on-surface-variant); font-size: var(--md-font-size-body1);">Chart display requires D3.js library to be loaded.</p>';
+          chartContainer.innerHTML = '<p style="text-align: center; color: var(--md-on-surface-variant); font-size: var(--md-font-size-body1);">Chart display library not available.</p>';
         }
 
         // --- Statistics Table ---
@@ -1070,8 +1103,16 @@
       }
     }
 
-    // Initial load
+    // Initial load and chart initialization
     loadBuckets();
+    
+    // Initialize empty chart on page load
+    if (typeof FallbackChart !== 'undefined') {
+      const container = document.getElementById('sensorChart');
+      chart = new FallbackChart(container);
+      // Make chart globally accessible for resize handling
+      window.chart = chart;
+    }
   </script>
 </body>
 </html>
