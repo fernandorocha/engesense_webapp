@@ -488,7 +488,8 @@
 
   <!-- Flatpickr & Apache ECharts -->
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <!-- Local ECharts instead of CDN to avoid blocking issues -->
+  <script src="/js/echarts.min.js"></script>
   <!-- Fallback chart implementation when ECharts is not available -->
   <script src="/js/fallback-chart.js"></script>
 
@@ -703,6 +704,7 @@
           selectedBuckets = [allBuckets[0]];
           populateDropdown(bucketsDropdown, allBuckets, selectedBuckets);
           updateDropdownText(bucketsDropdown, allBuckets, selectedBuckets);
+          updateCsvFields();
           await loadMeasurements();
         }
       } catch (err) {
@@ -757,9 +759,6 @@
           return;
         }
 
-        // Use display formatter for bucket:measurement -> bucket (measurement)
-        // (Using global formatter instead of local)
-
         // Auto-select first measurement only if no valid selections remain
         if (selectedMeasurements.length === 0 && allMeasurements.length > 0) {
           selectedMeasurements = [allMeasurements[0]];
@@ -767,10 +766,17 @@
 
         populateDropdown(measurementsDropdown, allMeasurements, selectedMeasurements, measurementDisplayFormatter);
         updateDropdownText(measurementsDropdown, allMeasurements, selectedMeasurements, measurementDisplayFormatter);
+        updateCsvFields();
         
         // Ensure the measurements dropdown state is synchronized and chart/stats are updated
         // This fixes the issue where auto-selected measurements don't trigger chart updates
-        onMeasurementsChange();
+        if (selectedMeasurements.length > 0) {
+          // Initialize chart if not already done
+          if (typeof echarts !== 'undefined' && !chart) {
+            chart = echarts.init(document.getElementById('sensorChart'));
+          }
+          loadAndRender();
+        }
       } catch (err) {
         console.error('Failed to load measurements:', err);
         allMeasurements = [];
@@ -1185,7 +1191,52 @@
     }
 
     // Initial load
-    loadBuckets();
+    loadBuckets().catch(err => {
+      console.error('Error during initial bucket loading:', err);
+      // Show empty chart with help message when real data is not available
+      initializeEmptyChart();
+    });
+    
+    function initializeEmptyChart() {
+      // Wait a bit to ensure DOM is ready and ECharts is loaded
+      setTimeout(() => {
+        if (typeof echarts !== 'undefined') {
+          if (!chart) {
+            chart = echarts.init(document.getElementById('sensorChart'));
+          }
+          
+          // Show empty chart with message
+          const option = {
+            title: {
+              text: 'No Data Available',
+              subtext: 'Click "📊 Demo Data" to see sample visualization or configure InfluxDB connection',
+              left: 'center',
+              top: 'center',
+              textStyle: {
+                color: '#999',
+                fontSize: 16
+              },
+              subtextStyle: {
+                color: '#666',
+                fontSize: 12
+              }
+            },
+            grid: { show: false },
+            xAxis: { show: false },
+            yAxis: { show: false }
+          };
+          
+          chart.setOption(option);
+          
+          // Ensure chart resizes properly
+          window.addEventListener('resize', function() {
+            if (chart && typeof chart.resize === 'function') {
+              chart.resize();
+            }
+          });
+        }
+      }, 100);
+    }
     
     // Handle window resize for ECharts
     window.addEventListener('resize', function() {
