@@ -420,12 +420,6 @@
           <span class="md-icon md-icon-sm">🔄</span>
           Refresh
         </button>
-        
-        <!-- Demo button for testing chart -->
-        <button id="demo-btn" class="md-button md-button-outlined md-button-small" style="border-color: var(--md-primary); color: var(--md-primary);">
-          <span class="md-icon md-icon-sm">📊</span>
-          Demo Data
-        </button>
       </div>
     </div>
 
@@ -465,7 +459,7 @@
   <!-- Chart Section -->
   <div class="chart-section">
     <div class="md-card chart-card md-elevation-2">
-      <div id="sensorChart"></div>
+      <div id="sensorChart" style="width: 100%; height: 500px;"></div>
     </div>
   </div>
 
@@ -492,7 +486,10 @@
   <!-- Scripts -->
   <script src="/css/theme-system.js"></script>
 
-  <!-- Fallback chart implementation when external dependencies are not available -->
+  <!-- Flatpickr & Apache ECharts -->
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <!-- Fallback chart implementation when ECharts is not available -->
   <script src="/js/fallback-chart.js"></script>
 
   <script>
@@ -878,72 +875,36 @@
       };
     });
 
-    // Initialize Flatpickr for range selection (disabled - external dependency not available)
-    // Disable calendar mode since flatpickr is not available
-    btnAbs.disabled = true;
-    btnAbs.style.opacity = '0.5';
-    btnAbs.style.cursor = 'not-allowed';
-    btnAbs.title = 'Calendar mode requires external dependencies';
+    // Initialize Flatpickr for range selection (only if available)
+    if (typeof flatpickr !== 'undefined') {
+      flatpickr(rangeInput, {
+        mode: 'range',
+        enableTime: true,
+        dateFormat: 'Y-m-d H:i',
+        onClose: function(selectedDates) {
+          if (selectedDates.length === 2) {
+            const [start, stop] = selectedDates;
+            updateTimeFields('', start.toISOString(), stop.toISOString());
+
+            loadAndRender({
+              start: start.toISOString(),
+              stop:  stop.toISOString()
+            });
+          }
+        }
+      });
+    } else {
+      // Disable calendar mode if flatpickr is not available
+      btnAbs.disabled = true;
+      btnAbs.style.opacity = '0.5';
+      btnAbs.style.cursor = 'not-allowed';
+    }
 
     // Refresh button functionality
     refreshBtn.onclick = () => {
       if (selectedMeasurements.length > 0) {
         loadAndRender();
       }
-    };
-
-    // Demo button functionality
-    const demoBtn = document.getElementById('demo-btn');
-    demoBtn.onclick = () => {
-      // Generate demo data to show chart functionality
-      const demoDatasets = [
-        {
-          label: 'Temperature (°C)',
-          data: [22.5, 23.1, 24.3, 25.7, 24.9, 23.8, 22.9, 23.4, 24.1, 23.7],
-          borderColor: '#1e88e5'
-        },
-        {
-          label: 'Humidity (%)',
-          data: [45.2, 47.8, 49.1, 52.3, 48.7, 46.5, 44.9, 46.8, 48.2, 47.1],
-          borderColor: '#e53935'
-        },
-        {
-          label: 'Pressure (hPa)',
-          data: [1013.2, 1014.1, 1012.8, 1011.5, 1013.9, 1015.2, 1014.7, 1013.4, 1012.1, 1014.8],
-          borderColor: '#43a047'
-        }
-      ];
-      
-      // Update chart with demo data
-      if (typeof FallbackChart !== 'undefined') {
-        if (chart) {
-          chart.updateData(demoDatasets);
-        } else {
-          const container = document.getElementById('sensorChart');
-          chart = new FallbackChart(container);
-          chart.updateData(demoDatasets);
-          window.chart = chart;
-        }
-      }
-      
-      // Update statistics table with demo data
-      const statsTable = document.getElementById('stats-table').querySelector('tbody');
-      statsTable.innerHTML = '';
-      demoDatasets.forEach(dataset => {
-        const values = dataset.data;
-        const min = Math.min(...values);
-        const max = Math.max(...values);
-        const avg = values.reduce((a, b) => a + b, 0) / values.length;
-        
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${dataset.label}</td>
-          <td>${min.toFixed(2)}</td>
-          <td>${avg.toFixed(2)}</td>
-          <td>${max.toFixed(2)}</td>
-        `;
-        statsTable.appendChild(row);
-      });
     };
 
 
@@ -1055,21 +1016,141 @@
           ? Object.values(datasetsByMeasurement)[0].timestamps.map(t => new Date(t).toLocaleString())
           : [];
 
-        // Chart rendering using fallback chart implementation
-        if (typeof FallbackChart !== 'undefined') {
+        // Chart rendering (only if ECharts is available)
+        if (typeof echarts !== 'undefined') {
+          // Initialize ECharts if not already done
+          if (!chart) {
+            chart = echarts.init(document.getElementById('sensorChart'));
+          }
+          
+          // Convert timestamps to proper format for ECharts
+          const timeData = Object.values(datasetsByMeasurement)[0]?.timestamps || [];
+          const xAxisData = timeData.map(t => new Date(t).toLocaleString());
+          
+          // Create series data for ECharts
+          const series = Object.keys(datasetsByMeasurement).map((measurement, index) => {
+            const colors = [
+              '#1e88e5', '#e53935', '#43a047', '#fb8c00',
+              '#8e24aa', '#00acc1', '#fdd835', '#f4511e'
+            ];
+            const color = colors[index % colors.length];
+            
+            return {
+              name: measurementDisplayFormatter(measurement),
+              type: 'line',
+              data: datasetsByMeasurement[measurement].values,
+              lineStyle: {
+                color: color,
+                width: 2
+              },
+              itemStyle: {
+                color: color
+              },
+              symbol: 'circle',
+              symbolSize: 4,
+              smooth: true
+            };
+          });
+          
+          // ECharts configuration
+          const option = {
+            title: {
+              text: 'Sensor Data',
+              textStyle: {
+                color: '#1976d2',
+                fontSize: 16,
+                fontWeight: 'bold'
+              }
+            },
+            tooltip: {
+              trigger: 'axis',
+              axisPointer: {
+                type: 'cross'
+              },
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              borderColor: '#ccc',
+              borderWidth: 1,
+              textStyle: {
+                color: '#333'
+              }
+            },
+            legend: {
+              data: series.map(s => s.name),
+              bottom: 10,
+              textStyle: {
+                color: '#666'
+              }
+            },
+            grid: {
+              left: '60px',
+              right: '60px',
+              bottom: '80px',
+              top: '60px',
+              containLabel: true
+            },
+            xAxis: {
+              type: 'category',
+              data: xAxisData,
+              axisLabel: {
+                color: '#666',
+                rotate: 45,
+                formatter: function(value) {
+                  // Show only time part for better readability
+                  return value.split(', ')[1] || value;
+                }
+              },
+              axisLine: {
+                lineStyle: {
+                  color: '#ccc'
+                }
+              }
+            },
+            yAxis: {
+              type: 'value',
+              axisLabel: {
+                color: '#666'
+              },
+              axisLine: {
+                lineStyle: {
+                  color: '#ccc'
+                }
+              },
+              splitLine: {
+                lineStyle: {
+                  color: '#eee'
+                }
+              }
+            },
+            series: series,
+            animation: true,
+            animationDuration: 1000
+          };
+          
+          chart.setOption(option);
+        } else if (typeof FallbackChart !== 'undefined') {
+          // Use fallback chart implementation
           if (chart) {
-            chart.updateData(datasets);
+            chart.data.labels = labels;
+            chart.data.datasets = datasets;
+            chart.update();
           } else {
-            const container = document.getElementById('sensorChart');
-            chart = new FallbackChart(container);
-            chart.updateData(datasets);
-            // Make chart globally accessible for resize handling
-            window.chart = chart;
+            const ctx = document.getElementById('sensorChart').getContext('2d');
+            chart = new FallbackChart(ctx, {
+              type: 'line',
+              data: {
+                labels,
+                datasets
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false
+              }
+            });
           }
         } else {
-          // Display message when chart library is not available
+          // Display message when ECharts is not available
           const chartContainer = document.querySelector('.chart-card');
-          chartContainer.innerHTML = '<p style="text-align: center; color: var(--md-on-surface-variant); font-size: var(--md-font-size-body1);">Chart display library not available.</p>';
+          chartContainer.innerHTML = '<p style="text-align: center; color: var(--md-on-surface-variant); font-size: var(--md-font-size-body1);">Chart display requires ECharts library to be loaded.</p>';
         }
 
         // --- Statistics Table ---
@@ -1103,16 +1184,183 @@
       }
     }
 
-    // Initial load and chart initialization
+    // Initial load
     loadBuckets();
     
-    // Initialize empty chart on page load
-    if (typeof FallbackChart !== 'undefined') {
-      const container = document.getElementById('sensorChart');
-      chart = new FallbackChart(container);
-      // Make chart globally accessible for resize handling
-      window.chart = chart;
+    // Handle window resize for ECharts
+    window.addEventListener('resize', function() {
+      if (chart && typeof chart.resize === 'function') {
+        chart.resize();
+      }
+    });
+    
+    // Add demo data functionality for testing
+    function loadDemoData() {
+      // Generate sample data for 24 hours
+      const now = new Date();
+      const timestamps = [];
+      const temperatureData = [];
+      const humidityData = [];
+      const pressureData = [];
+      
+      for (let i = 23; i >= 0; i--) {
+        const time = new Date(now.getTime() - i * 60 * 60 * 1000);
+        timestamps.push(time.toISOString());
+        
+        // Generate realistic sensor data
+        temperatureData.push(20 + Math.sin(i * 0.5) * 5 + Math.random() * 2);
+        humidityData.push(50 + Math.cos(i * 0.3) * 15 + Math.random() * 5);
+        pressureData.push(1013 + Math.sin(i * 0.2) * 10 + Math.random() * 3);
+      }
+      
+      // Simulate the data structure that the real loadSensorData function expects
+      const demoDatasetsByMeasurement = {
+        'demo:temperature': {
+          timestamps: timestamps,
+          values: temperatureData
+        },
+        'demo:humidity': {
+          timestamps: timestamps,
+          values: humidityData
+        },
+        'demo:pressure': {
+          timestamps: timestamps,
+          values: pressureData
+        }
+      };
+      
+      // Render chart with demo data
+      if (typeof echarts !== 'undefined') {
+        if (!chart) {
+          chart = echarts.init(document.getElementById('sensorChart'));
+        }
+        
+        const xAxisData = timestamps.map(t => new Date(t).toLocaleString());
+        
+        const series = [
+          {
+            name: 'demo (temperature)',
+            type: 'line',
+            data: temperatureData,
+            lineStyle: { color: '#1e88e5', width: 2 },
+            itemStyle: { color: '#1e88e5' },
+            symbol: 'circle',
+            symbolSize: 4,
+            smooth: true
+          },
+          {
+            name: 'demo (humidity)',
+            type: 'line',
+            data: humidityData,
+            lineStyle: { color: '#e53935', width: 2 },
+            itemStyle: { color: '#e53935' },
+            symbol: 'circle',
+            symbolSize: 4,
+            smooth: true
+          },
+          {
+            name: 'demo (pressure)',
+            type: 'line',
+            data: pressureData,
+            lineStyle: { color: '#43a047', width: 2 },
+            itemStyle: { color: '#43a047' },
+            symbol: 'circle',
+            symbolSize: 4,
+            smooth: true
+          }
+        ];
+        
+        const option = {
+          title: {
+            text: 'Demo Sensor Data',
+            textStyle: {
+              color: '#1976d2',
+              fontSize: 16,
+              fontWeight: 'bold'
+            }
+          },
+          tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'cross' },
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            borderColor: '#ccc',
+            borderWidth: 1,
+            textStyle: { color: '#333' }
+          },
+          legend: {
+            data: series.map(s => s.name),
+            bottom: 10,
+            textStyle: { color: '#666' }
+          },
+          grid: {
+            left: '60px',
+            right: '60px',
+            bottom: '80px',
+            top: '60px',
+            containLabel: true
+          },
+          xAxis: {
+            type: 'category',
+            data: xAxisData,
+            axisLabel: {
+              color: '#666',
+              rotate: 45,
+              formatter: function(value) {
+                return value.split(', ')[1] || value;
+              }
+            },
+            axisLine: { lineStyle: { color: '#ccc' } }
+          },
+          yAxis: {
+            type: 'value',
+            axisLabel: { color: '#666' },
+            axisLine: { lineStyle: { color: '#ccc' } },
+            splitLine: { lineStyle: { color: '#eee' } }
+          },
+          series: series,
+          animation: true,
+          animationDuration: 1000
+        };
+        
+        chart.setOption(option);
+      }
+      
+      // Update statistics table with demo data
+      const statsTable = document.getElementById('stats-table').querySelector('tbody');
+      statsTable.innerHTML = '';
+      
+      [
+        { label: 'demo (temperature)', values: temperatureData },
+        { label: 'demo (humidity)', values: humidityData },
+        { label: 'demo (pressure)', values: pressureData }
+      ].forEach(dataset => {
+        const min = Math.min(...dataset.values);
+        const max = Math.max(...dataset.values);
+        const avg = dataset.values.reduce((a, b) => a + b, 0) / dataset.values.length;
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${dataset.label}</td>
+          <td>${min.toFixed(2)}</td>
+          <td>${avg.toFixed(2)}</td>
+          <td>${max.toFixed(2)}</td>
+        `;
+        statsTable.appendChild(row);
+      });
     }
+    
+    // Add demo button to controls section
+    document.addEventListener('DOMContentLoaded', function() {
+      const controlsSection = document.querySelector('.controls-section');
+      if (controlsSection) {
+        const demoButton = document.createElement('button');
+        demoButton.textContent = '📊 Demo Data';
+        demoButton.className = 'md-button md-button-outlined';
+        demoButton.style.marginLeft = 'var(--md-spacing-md)';
+        demoButton.onclick = loadDemoData;
+        controlsSection.appendChild(demoButton);
+      }
+    });
   </script>
 </body>
 </html>
