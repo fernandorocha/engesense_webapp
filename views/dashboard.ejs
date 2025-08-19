@@ -614,7 +614,7 @@
         itemDiv.addEventListener('click', (e) => {
           if (e.target !== checkbox) {
             checkbox.checked = !checkbox.checked;
-            checkbox.dispatchEvent(new Event('change'));
+            checkbox.dispatchEvent(new Event('change', { bubbles: true }));
           }
         });
         
@@ -622,23 +622,33 @@
       });
     }
 
-    // Initialize dropdowns
+    // Initialize dropdowns with improved state management
     const bucketsDropdownControls = initializeDropdown(bucketsDropdown, () => {
       const checkboxes = bucketsDropdown.querySelectorAll('input[type="checkbox"]:checked');
-      selectedBuckets = Array.from(checkboxes).map(cb => cb.value);
-      updateDropdownText(bucketsDropdown, getAllBuckets(), selectedBuckets);
-      updateCsvFields();
-      loadMeasurements();
+      const newSelectedBuckets = Array.from(checkboxes).map(cb => cb.value);
+      
+      // Only update if the selection actually changed to avoid unnecessary API calls
+      if (JSON.stringify(newSelectedBuckets) !== JSON.stringify(selectedBuckets)) {
+        selectedBuckets = newSelectedBuckets;
+        updateDropdownText(bucketsDropdown, getAllBuckets(), selectedBuckets);
+        updateCsvFields();
+        loadMeasurements();
+      }
     });
 
-    // Define the measurements onChange handler as a function so we can call it programmatically
+    // Define the measurements onChange handler with improved state management
     function onMeasurementsChange() {
       const checkboxes = measurementsDropdown.querySelectorAll('input[type="checkbox"]:checked');
-      selectedMeasurements = Array.from(checkboxes).map(cb => cb.value);
-      updateDropdownText(measurementsDropdown, getAllMeasurements(), selectedMeasurements, measurementDisplayFormatter);
-      updateCsvFields();
-      if (selectedMeasurements.length > 0) {
-        loadAndRender();
+      const newSelectedMeasurements = Array.from(checkboxes).map(cb => cb.value);
+      
+      // Only update if the selection actually changed to avoid unnecessary API calls
+      if (JSON.stringify(newSelectedMeasurements) !== JSON.stringify(selectedMeasurements)) {
+        selectedMeasurements = newSelectedMeasurements;
+        updateDropdownText(measurementsDropdown, getAllMeasurements(), selectedMeasurements, measurementDisplayFormatter);
+        updateCsvFields();
+        if (selectedMeasurements.length > 0) {
+          loadAndRender();
+        }
       }
     }
     
@@ -657,14 +667,17 @@
         
         if (!res.ok) {
           console.error('Failed to load buckets: API returned error');
+          // When buckets fail to load, clear state and ensure dropdown is properly initialized
           allBuckets = [];
           selectedBuckets = [];
+          populateDropdown(bucketsDropdown, [], []);
           updateDropdownText(bucketsDropdown, [], []);
+          
           // Clear measurements when buckets fail to load
           allMeasurements = [];
           selectedMeasurements = [];
           populateDropdown(measurementsDropdown, [], []);
-          updateDropdownText(measurementsDropdown, [], []);
+          updateDropdownText(measurementsDropdown, [], [], measurementDisplayFormatter);
           return;
         }
         
