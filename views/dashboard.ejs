@@ -21,6 +21,7 @@
   
   <!-- Material Design System -->
   <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/chart-controls.css">
 
   <style>
     /* Dashboard-specific styles that complement the Material Design system */
@@ -456,10 +457,106 @@
     </div>
   </div>
 
+  <!-- Enhanced Chart Controls -->
+  <div class="chart-controls" id="chart-controls" style="display: none;">
+    <!-- Chart Type Selection -->
+    <div class="chart-control-group">
+      <div class="chart-control-label">Chart Type</div>
+      <div class="chart-type-buttons">
+        <button class="chart-type-button active" data-type="line">Line</button>
+        <button class="chart-type-button" data-type="area">Area</button>
+        <button class="chart-type-button" data-type="bar">Bar</button>
+        <button class="chart-type-button" data-type="scatter">Scatter</button>
+      </div>
+    </div>
+
+    <!-- Visual Features -->
+    <div class="chart-control-group">
+      <div class="chart-control-label">Visual Options</div>
+      <div class="chart-control-buttons">
+        <button class="chart-feature-toggle active" id="toggle-points">Points</button>
+        <button class="chart-feature-toggle" id="toggle-fill">Fill Area</button>
+        <button class="chart-feature-toggle active" id="toggle-grid">Grid</button>
+        <button class="chart-feature-toggle active" id="toggle-legend">Legend</button>
+      </div>
+    </div>
+
+    <!-- Line Style -->
+    <div class="chart-control-group">
+      <div class="chart-control-label">Line Style</div>
+      <div class="chart-control-buttons">
+        <button class="chart-feature-toggle active" data-line-style="solid">Solid</button>
+        <button class="chart-feature-toggle" data-line-style="dashed">Dashed</button>
+        <button class="chart-feature-toggle" data-line-style="dotted">Dotted</button>
+      </div>
+    </div>
+
+    <!-- Color Palette -->
+    <div class="chart-control-group">
+      <div class="chart-control-label">Color Palette</div>
+      <div class="chart-color-palette">
+        <div class="color-palette-option default active" data-palette="default" title="Default"></div>
+        <div class="color-palette-option vibrant" data-palette="vibrant" title="Vibrant"></div>
+        <div class="color-palette-option pastel" data-palette="pastel" title="Pastel"></div>
+        <div class="color-palette-option monochrome" data-palette="monochrome" title="Monochrome"></div>
+      </div>
+    </div>
+
+    <!-- Chart Actions -->
+    <div class="chart-actions">
+      <div class="chart-zoom-controls">
+        <button class="chart-action-button" id="zoom-out">🔍-</button>
+        <span class="zoom-level-indicator" id="zoom-level">100%</span>
+        <button class="chart-action-button" id="zoom-in">🔍+</button>
+        <button class="chart-action-button" id="reset-zoom">↺</button>
+      </div>
+      <button class="chart-action-button" id="export-png">📷 PNG</button>
+      <button class="chart-action-button" id="fullscreen-chart">⛶ Fullscreen</button>
+    </div>
+
+    <!-- Advanced Controls -->
+    <div class="advanced-controls">
+      <!-- Y-Axis Type -->
+      <div class="chart-control-group">
+        <div class="chart-control-label">Y-Axis Scale</div>
+        <div class="chart-control-buttons">
+          <button class="chart-feature-toggle active" data-y-axis="linear">Linear</button>
+          <button class="chart-feature-toggle" data-y-axis="logarithmic">Log</button>
+        </div>
+      </div>
+
+      <!-- Data Processing -->
+      <div class="chart-control-group">
+        <div class="chart-control-label">Data Processing</div>
+        <div class="chart-control-buttons">
+          <button class="chart-feature-toggle" id="toggle-smoothing">Smoothing</button>
+          <button class="chart-feature-toggle" id="toggle-moving-avg">Moving Avg</button>
+        </div>
+      </div>
+
+      <!-- Moving Average Period -->
+      <div class="range-control" id="ma-period-control" style="display: none;">
+        <div class="chart-control-label">MA Period</div>
+        <input type="range" class="range-input" id="ma-period" min="2" max="20" value="5">
+        <div class="range-value" id="ma-period-value">5</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Chart Section -->
   <div class="chart-section">
-    <div class="md-card chart-card md-elevation-2">
-      <canvas id="sensorChart"></canvas>
+    <div class="md-card enhanced-chart-container md-elevation-2">
+      <div class="chart-header">
+        <h3 class="chart-title">Sensor Data Visualization</h3>
+        <div class="chart-status">
+          <div class="status-indicator" id="chart-status"></div>
+          <span id="chart-status-text">Ready</span>
+        </div>
+      </div>
+      <div class="chart-card">
+        <canvas id="sensorChart"></canvas>
+        <div class="chart-loading" id="chart-loading" style="display: none;">Loading chart data...</div>
+      </div>
     </div>
   </div>
 
@@ -489,6 +586,8 @@
   <!-- Flatpickr & Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Enhanced chart implementation -->
+  <script src="/js/enhanced-chart.js"></script>
   <!-- Fallback chart implementation when Chart.js is not available -->
   <script src="/js/fallback-chart.js"></script>
 
@@ -512,6 +611,17 @@
     let chart;
     let selectedBuckets = [];
     let selectedMeasurements = [];
+
+    // Chart status management
+    function updateChartStatus(status, message) {
+      const statusIndicator = document.getElementById('chart-status');
+      const statusText = document.getElementById('chart-status-text');
+      
+      if (statusIndicator && statusText) {
+        statusIndicator.className = `status-indicator ${status}`;
+        statusText.textContent = message;
+      }
+    }
 
     // Display formatter for measurements: bucket:measurement -> bucket (measurement)
     const measurementDisplayFormatter = (measurement) => {
@@ -1016,8 +1126,33 @@
           ? Object.values(datasetsByMeasurement)[0].timestamps.map(t => new Date(t).toLocaleString())
           : [];
 
-        // Chart rendering (only if Chart.js is available)
-        if (typeof Chart !== 'undefined') {
+        // Enhanced Chart rendering - use EnhancedChart if available, fallback to others
+        if (typeof EnhancedChart !== 'undefined') {
+          // Use enhanced chart implementation with all advanced features
+          if (chart) {
+            chart.data.labels = labels;
+            chart.data.datasets = datasets;
+            chart.update();
+          } else {
+            const ctx = document.getElementById('sensorChart').getContext('2d');
+            chart = new EnhancedChart(ctx, {
+              type: 'line',
+              data: {
+                labels,
+                datasets
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false
+              }
+            });
+            
+            // Show chart controls when enhanced chart is available
+            document.getElementById('chart-controls').style.display = 'flex';
+            initializeChartControls();
+          }
+        } else if (typeof Chart !== 'undefined') {
+          // Use Chart.js with basic functionality
           if (chart) {
             chart.data.labels = labels;
             chart.data.datasets = datasets;
@@ -1071,10 +1206,13 @@
             });
           }
         } else {
-          // Display message when Chart.js is not available
+          // Display message when no chart implementation is available
           const chartContainer = document.querySelector('.chart-card');
           chartContainer.innerHTML = '<p style="text-align: center; color: var(--md-on-surface-variant); font-size: var(--md-font-size-body1);">Chart display requires Chart.js library to be loaded.</p>';
         }
+        
+        // Update chart status
+        updateChartStatus('success', 'Chart updated successfully');
 
         // --- Statistics Table ---
         const statsTable = document.getElementById('stats-table').querySelector('tbody');
@@ -1098,13 +1236,141 @@
             <td>${max.toFixed(2)}</td>
           `;
           statsTable.appendChild(row);
-        });
         // --- End Statistics Table ---
 
       } catch (err) {
         console.error('Failed to load sensor data:', err);
         showErrorNotification(err.message || 'Failed to load sensor data');
+        updateChartStatus('error', 'Failed to load data');
       }
+    }
+
+    // Initialize enhanced chart controls
+    function initializeChartControls() {
+      if (!chart || typeof chart.setChartType !== 'function') return;
+
+      // Chart type buttons
+      document.querySelectorAll('.chart-type-button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.chart-type-button').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          chart.setChartType(btn.dataset.type);
+          updateChartStatus('success', 'Chart type changed to ' + btn.dataset.type);
+        });
+      });
+
+      // Visual feature toggles
+      document.getElementById('toggle-points').addEventListener('click', (e) => {
+        e.target.classList.toggle('active');
+        chart.setShowDataPoints(e.target.classList.contains('active'));
+      });
+
+      document.getElementById('toggle-fill').addEventListener('click', (e) => {
+        e.target.classList.toggle('active');
+        chart.setFillArea(e.target.classList.contains('active'));
+      });
+
+      document.getElementById('toggle-grid').addEventListener('click', (e) => {
+        e.target.classList.toggle('active');
+        chart.showGrid = e.target.classList.contains('active');
+        chart.draw();
+      });
+
+      document.getElementById('toggle-legend').addEventListener('click', (e) => {
+        e.target.classList.toggle('active');
+        chart.showLegend = e.target.classList.contains('active');
+        chart.draw();
+      });
+
+      // Line style buttons
+      document.querySelectorAll('[data-line-style]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('[data-line-style]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          chart.setLineStyle(btn.dataset.lineStyle);
+        });
+      });
+
+      // Color palette selection
+      document.querySelectorAll('.color-palette-option').forEach(option => {
+        option.addEventListener('click', () => {
+          document.querySelectorAll('.color-palette-option').forEach(o => o.classList.remove('active'));
+          option.classList.add('active');
+          chart.setColorPalette(option.dataset.palette);
+        });
+      });
+
+      // Y-axis type buttons
+      document.querySelectorAll('[data-y-axis]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('[data-y-axis]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          chart.setYAxisType(btn.dataset.yAxis);
+        });
+      });
+
+      // Zoom controls
+      document.getElementById('zoom-in').addEventListener('click', () => {
+        chart.zoom(1.2, chart.canvas.width / 2, chart.canvas.height / 2);
+        updateZoomLevel();
+      });
+
+      document.getElementById('zoom-out').addEventListener('click', () => {
+        chart.zoom(0.8, chart.canvas.width / 2, chart.canvas.height / 2);
+        updateZoomLevel();
+      });
+
+      document.getElementById('reset-zoom').addEventListener('click', () => {
+        chart.resetZoom();
+        updateZoomLevel();
+      });
+
+      // Data processing toggles
+      document.getElementById('toggle-smoothing').addEventListener('click', (e) => {
+        e.target.classList.toggle('active');
+        chart.setSmoothing(e.target.classList.contains('active'));
+      });
+
+      document.getElementById('toggle-moving-avg').addEventListener('click', (e) => {
+        e.target.classList.toggle('active');
+        const isActive = e.target.classList.contains('active');
+        chart.setMovingAverage(isActive, parseInt(document.getElementById('ma-period').value));
+        document.getElementById('ma-period-control').style.display = isActive ? 'block' : 'none';
+      });
+
+      // Moving average period control
+      const maPeriodSlider = document.getElementById('ma-period');
+      const maPeriodValue = document.getElementById('ma-period-value');
+      
+      maPeriodSlider.addEventListener('input', (e) => {
+        const period = parseInt(e.target.value);
+        maPeriodValue.textContent = period;
+        if (document.getElementById('toggle-moving-avg').classList.contains('active')) {
+          chart.setMovingAverage(true, period);
+        }
+      });
+
+      // Export and utility actions
+      document.getElementById('export-png').addEventListener('click', () => {
+        chart.exportChart('png');
+        updateChartStatus('success', 'Chart exported as PNG');
+      });
+
+      document.getElementById('fullscreen-chart').addEventListener('click', () => {
+        chart.enterFullscreen();
+      });
+
+      // Update zoom level display
+      function updateZoomLevel() {
+        const zoomLevel = document.getElementById('zoom-level');
+        if (chart.zoomLevel) {
+          zoomLevel.textContent = `${Math.round(chart.zoomLevel * 100)}%`;
+        }
+      }
+
+      // Initial state
+      updateZoomLevel();
+      updateChartStatus('success', 'Enhanced chart ready');
     }
 
     // Initial load

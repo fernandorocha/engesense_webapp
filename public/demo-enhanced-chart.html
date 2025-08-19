@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enhanced Chart Demo - Engesense</title>
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/chart-controls.css">
+  <style>
+    body {
+      padding: 20px;
+      background: var(--md-surface);
+    }
+    .demo-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .demo-title {
+      font-size: 24px;
+      font-weight: 500;
+      color: var(--md-primary);
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .chart-container {
+      width: 100%;
+      height: 500px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <h1 class="demo-title">Enhanced Chart Functionality Demo</h1>
+    
+    <!-- Enhanced Chart Controls -->
+    <div class="chart-controls">
+      <!-- Chart Type Selection -->
+      <div class="chart-control-group">
+        <div class="chart-control-label">Chart Type</div>
+        <div class="chart-type-buttons">
+          <button class="chart-type-button active" data-type="line">Line</button>
+          <button class="chart-type-button" data-type="area">Area</button>
+          <button class="chart-type-button" data-type="bar">Bar</button>
+          <button class="chart-type-button" data-type="scatter">Scatter</button>
+        </div>
+      </div>
+
+      <!-- Visual Features -->
+      <div class="chart-control-group">
+        <div class="chart-control-label">Visual Options</div>
+        <div class="chart-control-buttons">
+          <button class="chart-feature-toggle active" id="toggle-points">Points</button>
+          <button class="chart-feature-toggle" id="toggle-fill">Fill Area</button>
+          <button class="chart-feature-toggle active" id="toggle-grid">Grid</button>
+          <button class="chart-feature-toggle active" id="toggle-legend">Legend</button>
+        </div>
+      </div>
+
+      <!-- Line Style -->
+      <div class="chart-control-group">
+        <div class="chart-control-label">Line Style</div>
+        <div class="chart-control-buttons">
+          <button class="chart-feature-toggle active" data-line-style="solid">Solid</button>
+          <button class="chart-feature-toggle" data-line-style="dashed">Dashed</button>
+          <button class="chart-feature-toggle" data-line-style="dotted">Dotted</button>
+        </div>
+      </div>
+
+      <!-- Color Palette -->
+      <div class="chart-control-group">
+        <div class="chart-control-label">Color Palette</div>
+        <div class="chart-color-palette">
+          <div class="color-palette-option default active" data-palette="default" title="Default"></div>
+          <div class="color-palette-option vibrant" data-palette="vibrant" title="Vibrant"></div>
+          <div class="color-palette-option pastel" data-palette="pastel" title="Pastel"></div>
+          <div class="color-palette-option monochrome" data-palette="monochrome" title="Monochrome"></div>
+        </div>
+      </div>
+
+      <!-- Chart Actions -->
+      <div class="chart-actions">
+        <div class="chart-zoom-controls">
+          <button class="chart-action-button" id="zoom-out">🔍-</button>
+          <span class="zoom-level-indicator" id="zoom-level">100%</span>
+          <button class="chart-action-button" id="zoom-in">🔍+</button>
+          <button class="chart-action-button" id="reset-zoom">↺</button>
+        </div>
+        <button class="chart-action-button" id="export-png">📷 PNG</button>
+        <button class="chart-action-button" id="fullscreen-chart">⛶ Fullscreen</button>
+      </div>
+
+      <!-- Advanced Controls -->
+      <div class="advanced-controls">
+        <!-- Y-Axis Type -->
+        <div class="chart-control-group">
+          <div class="chart-control-label">Y-Axis Scale</div>
+          <div class="chart-control-buttons">
+            <button class="chart-feature-toggle active" data-y-axis="linear">Linear</button>
+            <button class="chart-feature-toggle" data-y-axis="logarithmic">Log</button>
+          </div>
+        </div>
+
+        <!-- Data Processing -->
+        <div class="chart-control-group">
+          <div class="chart-control-label">Data Processing</div>
+          <div class="chart-control-buttons">
+            <button class="chart-feature-toggle" id="toggle-smoothing">Smoothing</button>
+            <button class="chart-feature-toggle" id="toggle-moving-avg">Moving Avg</button>
+          </div>
+        </div>
+
+        <!-- Moving Average Period -->
+        <div class="range-control" id="ma-period-control" style="display: none;">
+          <div class="chart-control-label">MA Period</div>
+          <input type="range" class="range-input" id="ma-period" min="2" max="20" value="5">
+          <div class="range-value" id="ma-period-value">5</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart Section -->
+    <div class="enhanced-chart-container">
+      <div class="chart-header">
+        <h3 class="chart-title">Enhanced Sensor Data Visualization</h3>
+        <div class="chart-status">
+          <div class="status-indicator" id="chart-status"></div>
+          <span id="chart-status-text">Ready</span>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas id="sensorChart" width="800" height="500"></canvas>
+      </div>
+    </div>
+
+    <!-- Feature List -->
+    <div style="margin-top: 40px; padding: 20px; background: var(--md-surface-variant); border-radius: 8px;">
+      <h3 style="color: var(--md-primary); margin-bottom: 15px;">Enhanced Chart Features</h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+        <ul style="margin: 0; padding-left: 20px; color: var(--md-on-surface);">
+          <li>Multiple chart types (Line, Area, Bar, Scatter)</li>
+          <li>Interactive zoom and pan</li>
+          <li>Crosshair cursor for precise value reading</li>
+          <li>Click to highlight/filter datasets</li>
+          <li>Customizable color palettes</li>
+        </ul>
+        <ul style="margin: 0; padding-left: 20px; color: var(--md-on-surface);">
+          <li>Line style variations (solid, dashed, dotted)</li>
+          <li>Fill area under lines option</li>
+          <li>Toggle grid, points, and legend</li>
+          <li>Moving averages overlay</li>
+          <li>Data smoothing</li>
+        </ul>
+        <ul style="margin: 0; padding-left: 20px; color: var(--md-on-surface);">
+          <li>Enhanced tooltips with detailed info</li>
+          <li>Chart export as PNG</li>
+          <li>Fullscreen mode</li>
+          <li>Linear and logarithmic Y-axis</li>
+          <li>Real-time chart status updates</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/css/theme-system.js"></script>
+  <script src="/js/enhanced-chart.js"></script>
+
+  <script>
+    // Sample data for demonstration
+    const sampleData = {
+      labels: [
+        '2024-01-01 10:00', '2024-01-01 10:05', '2024-01-01 10:10', '2024-01-01 10:15',
+        '2024-01-01 10:20', '2024-01-01 10:25', '2024-01-01 10:30', '2024-01-01 10:35',
+        '2024-01-01 10:40', '2024-01-01 10:45', '2024-01-01 10:50', '2024-01-01 10:55'
+      ],
+      datasets: [
+        {
+          label: 'Temperature (°C)',
+          data: [22.5, 23.1, 24.2, 25.8, 26.3, 25.9, 24.7, 23.8, 22.9, 22.1, 21.8, 21.5],
+          borderColor: '#1e88e5',
+          backgroundColor: 'rgba(30, 136, 229, 0.2)'
+        },
+        {
+          label: 'Humidity (%)',
+          data: [45, 47, 52, 58, 61, 59, 55, 51, 48, 44, 42, 40],
+          borderColor: '#e53935',
+          backgroundColor: 'rgba(229, 57, 53, 0.2)'
+        },
+        {
+          label: 'Pressure (hPa)',
+          data: [1013, 1014, 1015, 1016, 1017, 1016, 1015, 1014, 1013, 1012, 1011, 1010],
+          borderColor: '#43a047',
+          backgroundColor: 'rgba(67, 160, 71, 0.2)'
+        }
+      ]
+    };
+
+    let chart;
+
+    // Initialize chart
+    function initializeChart() {
+      const ctx = document.getElementById('sensorChart').getContext('2d');
+      chart = new EnhancedChart(ctx, {
+        type: 'line',
+        data: sampleData,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false
+        }
+      });
+
+      updateChartStatus('success', 'Enhanced chart ready');
+      initializeChartControls();
+    }
+
+    // Chart status management
+    function updateChartStatus(status, message) {
+      const statusIndicator = document.getElementById('chart-status');
+      const statusText = document.getElementById('chart-status-text');
+      
+      if (statusIndicator && statusText) {
+        statusIndicator.className = 'status-indicator ' + status;
+        statusText.textContent = message;
+      }
+    }
+
+    // Initialize enhanced chart controls
+    function initializeChartControls() {
+      if (!chart || typeof chart.setChartType !== 'function') return;
+
+      // Chart type buttons
+      document.querySelectorAll('.chart-type-button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.chart-type-button').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          chart.setChartType(btn.dataset.type);
+          updateChartStatus('success', 'Chart type changed to ' + btn.dataset.type);
+        });
+      });
+
+      // Visual feature toggles
+      document.getElementById('toggle-points').addEventListener('click', (e) => {
+        e.target.classList.toggle('active');
+        chart.setShowDataPoints(e.target.classList.contains('active'));
+      });
+
+      document.getElementById('toggle-fill').addEventListener('click', (e) => {
+        e.target.classList.toggle('active');
+        chart.setFillArea(e.target.classList.contains('active'));
+      });
+
+      document.getElementById('toggle-grid').addEventListener('click', (e) => {
+        e.target.classList.toggle('active');
+        chart.showGrid = e.target.classList.contains('active');
+        chart.draw();
+      });
+
+      document.getElementById('toggle-legend').addEventListener('click', (e) => {
+        e.target.classList.toggle('active');
+        chart.showLegend = e.target.classList.contains('active');
+        chart.draw();
+      });
+
+      // Line style buttons
+      document.querySelectorAll('[data-line-style]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('[data-line-style]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          chart.setLineStyle(btn.dataset.lineStyle);
+        });
+      });
+
+      // Color palette selection
+      document.querySelectorAll('.color-palette-option').forEach(option => {
+        option.addEventListener('click', () => {
+          document.querySelectorAll('.color-palette-option').forEach(o => o.classList.remove('active'));
+          option.classList.add('active');
+          chart.setColorPalette(option.dataset.palette);
+        });
+      });
+
+      // Y-axis type buttons
+      document.querySelectorAll('[data-y-axis]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('[data-y-axis]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          chart.setYAxisType(btn.dataset.yAxis);
+        });
+      });
+
+      // Zoom controls
+      document.getElementById('zoom-in').addEventListener('click', () => {
+        chart.zoom(1.2, chart.canvas.width / 2, chart.canvas.height / 2);
+        updateZoomLevel();
+      });
+
+      document.getElementById('zoom-out').addEventListener('click', () => {
+        chart.zoom(0.8, chart.canvas.width / 2, chart.canvas.height / 2);
+        updateZoomLevel();
+      });
+
+      document.getElementById('reset-zoom').addEventListener('click', () => {
+        chart.resetZoom();
+        updateZoomLevel();
+      });
+
+      // Data processing toggles
+      document.getElementById('toggle-smoothing').addEventListener('click', (e) => {
+        e.target.classList.toggle('active');
+        chart.setSmoothing(e.target.classList.contains('active'));
+      });
+
+      document.getElementById('toggle-moving-avg').addEventListener('click', (e) => {
+        e.target.classList.toggle('active');
+        const isActive = e.target.classList.contains('active');
+        chart.setMovingAverage(isActive, parseInt(document.getElementById('ma-period').value));
+        document.getElementById('ma-period-control').style.display = isActive ? 'block' : 'none';
+      });
+
+      // Moving average period control
+      const maPeriodSlider = document.getElementById('ma-period');
+      const maPeriodValue = document.getElementById('ma-period-value');
+      
+      maPeriodSlider.addEventListener('input', (e) => {
+        const period = parseInt(e.target.value);
+        maPeriodValue.textContent = period;
+        if (document.getElementById('toggle-moving-avg').classList.contains('active')) {
+          chart.setMovingAverage(true, period);
+        }
+      });
+
+      // Export and utility actions
+      document.getElementById('export-png').addEventListener('click', () => {
+        chart.exportChart('png');
+        updateChartStatus('success', 'Chart exported as PNG');
+      });
+
+      document.getElementById('fullscreen-chart').addEventListener('click', () => {
+        chart.enterFullscreen();
+      });
+
+      // Update zoom level display
+      function updateZoomLevel() {
+        const zoomLevel = document.getElementById('zoom-level');
+        if (chart.zoomLevel) {
+          zoomLevel.textContent = Math.round(chart.zoomLevel * 100) + '%';
+        }
+      }
+
+      // Initial state
+      updateZoomLevel();
+    }
+
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+      if (typeof EnhancedChart !== 'undefined') {
+        initializeChart();
+      } else {
+        updateChartStatus('error', 'Enhanced chart library not loaded');
+      }
+    });
+  </script>
+</body>
+</html>
