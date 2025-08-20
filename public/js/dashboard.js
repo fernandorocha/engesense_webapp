@@ -38,11 +38,19 @@ class Dashboard {
     const measurementsDropdown = document.getElementById('measurementsDropdown');
 
     if (bucketsDropdown) {
-      this.ui.initializeDropdown(bucketsDropdown, () => this.handleBucketsChange());
+      this.ui.initializeDropdown(
+        bucketsDropdown, 
+        () => this.handleBucketsUIChange(),
+        () => this.handleBucketsClose()
+      );
     }
 
     if (measurementsDropdown) {
-      this.ui.initializeDropdown(measurementsDropdown, () => this.handleMeasurementsChange());
+      this.ui.initializeDropdown(
+        measurementsDropdown, 
+        () => this.handleMeasurementsUIChange(),
+        () => this.handleMeasurementsClose()
+      );
     }
   }
 
@@ -224,6 +232,39 @@ class Dashboard {
     if (measurementsDropdown) {
       this.ui.populateDropdown(measurementsDropdown, [], []);
       this.ui.updateDropdownText(measurementsDropdown, [], [], this.ui.measurementDisplayFormatter);
+    }
+  }
+
+  // UI-only handlers (called during dropdown interaction)
+  handleBucketsUIChange() {
+    const bucketsDropdown = document.getElementById('bucketsDropdown');
+    if (bucketsDropdown) {
+      this.ui.selectedBuckets = this.ui.getSelectedItems(bucketsDropdown);
+      this.ui.updateDropdownText(bucketsDropdown, this.ui.allBuckets, this.ui.selectedBuckets);
+      this.ui.updateCsvFields();
+    }
+  }
+
+  handleMeasurementsUIChange() {
+    const measurementsDropdown = document.getElementById('measurementsDropdown');
+    if (measurementsDropdown) {
+      this.ui.selectedMeasurements = this.ui.getSelectedItems(measurementsDropdown);
+      this.ui.updateDropdownText(measurementsDropdown, this.ui.allMeasurements, this.ui.selectedMeasurements, this.ui.measurementDisplayFormatter);
+      this.ui.updateCsvFields();
+    }
+  }
+
+  // API handlers (called when dropdown is closed)
+  async handleBucketsClose() {
+    await this.loadMeasurements();
+  }
+
+  async handleMeasurementsClose() {
+    if (this.ui.selectedMeasurements.length > 0) {
+      await this.loadAndRender();
+    } else {
+      this.charts.showNoDataMessage();
+      this.stats.showNoStatsMessage();
     }
   }
 

@@ -19,10 +19,12 @@ class DashboardUI {
   }
 
   // Custom dropdown functionality
-  initializeDropdown(dropdownElement, onSelectionChange) {
+  initializeDropdown(dropdownElement, onSelectionChange, onDropdownClose = null) {
     const trigger = dropdownElement.querySelector('.dropdown-trigger');
     const content = dropdownElement.querySelector('.dropdown-content');
     const textElement = trigger.querySelector('.dropdown-text');
+    
+    let pendingChange = false;
 
     // Toggle dropdown
     trigger.addEventListener('click', () => {
@@ -31,21 +33,30 @@ class DashboardUI {
       if (!isOpen) {
         content.classList.add('open');
         trigger.classList.add('open');
+        pendingChange = false; // Reset pending change when opening
       }
     });
 
     // Close dropdown when clicking outside
     document.addEventListener('click', (e) => {
       if (!dropdownElement.contains(e.target)) {
+        const wasOpen = content.classList.contains('open');
         content.classList.remove('open');
         trigger.classList.remove('open');
+        
+        // Call onDropdownClose if dropdown was open and there's a pending change
+        if (wasOpen && pendingChange && onDropdownClose) {
+          onDropdownClose();
+          pendingChange = false;
+        }
       }
     });
 
-    // Handle checkbox changes
+    // Handle checkbox changes - just update UI, don't call API
     content.addEventListener('change', (e) => {
       if (e.target.type === 'checkbox') {
-        onSelectionChange();
+        pendingChange = true;
+        onSelectionChange(); // This should only update UI, not trigger API calls
       }
     });
 
