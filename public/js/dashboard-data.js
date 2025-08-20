@@ -118,7 +118,7 @@ class DashboardData {
   }
 
   // Process readings for chart display
-  processReadingsForChart(readings) {
+  processReadingsForChart(readings, selectedMeasurements = null) {
     if (!readings || readings.length === 0) {
       return {};
     }
@@ -130,6 +130,13 @@ class DashboardData {
       const key = (reading.bucket && reading.measurement) 
         ? `${reading.bucket}:${reading.measurement}` 
         : (reading.measurement || 'Unknown');
+      
+      // Filter out readings for measurements that are not currently selected
+      if (selectedMeasurements && selectedMeasurements.length > 0) {
+        if (!selectedMeasurements.includes(key)) {
+          return; // Skip this reading
+        }
+      }
       
       if (!datasetsByMeasurement[key]) {
         datasetsByMeasurement[key] = {
@@ -145,13 +152,13 @@ class DashboardData {
   }
 
   // Calculate statistics from readings
-  calculateStatistics(readings) {
+  calculateStatistics(readings, selectedMeasurements = null) {
     if (!readings || readings.length === 0) {
       return {};
     }
 
     const stats = {};
-    const dataByMeasurement = this.processReadingsForChart(readings);
+    const dataByMeasurement = this.processReadingsForChart(readings, selectedMeasurements);
 
     Object.keys(dataByMeasurement).forEach(measurement => {
       const values = dataByMeasurement[measurement].values;

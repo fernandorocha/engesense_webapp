@@ -291,8 +291,8 @@ class Dashboard {
       }
 
       // Process data for visualization
-      const processedData = this.data.processReadingsForChart(result.readings);
-      const statistics = this.data.calculateStatistics(result.readings);
+      const processedData = this.data.processReadingsForChart(result.readings, this.ui.selectedMeasurements);
+      const statistics = this.data.calculateStatistics(result.readings, this.ui.selectedMeasurements);
 
       // Render chart and stats
       this.charts.renderChart(processedData, this.ui.measurementDisplayFormatter);
