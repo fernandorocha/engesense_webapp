@@ -197,8 +197,11 @@ class FallbackChart {
   }
 }
 
-// Create a global Chart constructor if Chart.js is not available
-if (typeof Chart === 'undefined') {
+// Create a global Chart constructor if Chart.js is not available and ECharts is also not available
+if (typeof Chart === 'undefined' && typeof echarts === 'undefined') {
   window.Chart = FallbackChart;
   console.log('Using fallback chart implementation');
+} else if (typeof echarts !== 'undefined') {
+  // ECharts is available, no need for fallback
+  console.log('ECharts is available and ready');
 }
