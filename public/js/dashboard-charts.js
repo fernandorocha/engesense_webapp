@@ -22,7 +22,7 @@ class DashboardCharts {
 
     // Initialize chart based on available library
     if (typeof echarts !== 'undefined') {
-      this.chart = echarts.init(this.chartContainer);
+      this.initializeEChart();
       return true;
     } else if (typeof createFallbackChart !== 'undefined') {
       // Use fallback chart implementation
@@ -164,7 +164,8 @@ class DashboardCharts {
       series: datasets
     };
 
-    this.chart.setOption(option, true);
+    // Use setOption without force replacement to avoid disposal issues
+    this.chart.setOption(option, false);
     return true;
   }
 
@@ -198,9 +199,14 @@ class DashboardCharts {
     
     const datasets = this.createChartDatasets(datasetsByMeasurement, displayFormatter);
     
-    // Try ECharts first, then fallback
-    if (typeof echarts !== 'undefined' && this.chart) {
-      return this.renderEChart(datasets);
+    // Ensure chart is properly initialized
+    if (typeof echarts !== 'undefined') {
+      if (!this.chart) {
+        this.initializeEChart();
+      }
+      if (this.chart) {
+        return this.renderEChart(datasets);
+      }
     } else if (typeof createFallbackChart !== 'undefined') {
       return this.renderFallbackChart(datasets);
     } else {
@@ -211,6 +217,9 @@ class DashboardCharts {
 
   // Show no data message
   showNoDataMessage() {
+    // Properly dispose of existing chart first
+    this.dispose();
+    
     if (this.chartContainer) {
       this.chartContainer.innerHTML = `
         <div style="display: flex; align-items: center; justify-content: center; height: 400px; flex-direction: column;">
@@ -227,10 +236,19 @@ class DashboardCharts {
   hideNoDataMessage() {
     if (this.chartContainer && this.chartContainer.innerHTML.includes('No Data Available')) {
       this.chartContainer.innerHTML = '';
-      // Reinitialize chart if needed
-      if (typeof echarts !== 'undefined') {
-        this.chart = echarts.init(this.chartContainer);
+      // Reinitialize chart after clearing
+      this.initializeEChart();
+    }
+  }
+
+  // Initialize ECharts instance
+  initializeEChart() {
+    if (typeof echarts !== 'undefined' && this.chartContainer) {
+      // Dispose existing chart if any
+      if (this.chart) {
+        this.dispose();
       }
+      this.chart = echarts.init(this.chartContainer);
     }
   }
 
@@ -243,8 +261,14 @@ class DashboardCharts {
 
   // Dispose chart
   dispose() {
-    if (this.chart && typeof this.chart.dispose === 'function') {
-      this.chart.dispose();
+    if (this.chart) {
+      try {
+        if (typeof this.chart.dispose === 'function') {
+          this.chart.dispose();
+        }
+      } catch (error) {
+        console.warn('Error disposing chart:', error);
+      }
       this.chart = null;
     }
   }
