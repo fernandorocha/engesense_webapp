@@ -1209,7 +1209,7 @@
           const option = {
             title: {
               text: 'No Data Available',
-              subtext: 'Click "📊 Demo Data" to see sample visualization or configure InfluxDB connection',
+              subtext: 'Please configure InfluxDB connection and select buckets/measurements to display data',
               left: 'center',
               top: 'center',
               textStyle: {
@@ -1245,173 +1245,11 @@
       }
     });
     
-    // Add demo data functionality for testing
-    function loadDemoData() {
-      // Generate sample data for 24 hours
-      const now = new Date();
-      const timestamps = [];
-      const temperatureData = [];
-      const humidityData = [];
-      const pressureData = [];
-      
-      for (let i = 23; i >= 0; i--) {
-        const time = new Date(now.getTime() - i * 60 * 60 * 1000);
-        timestamps.push(time.toISOString());
-        
-        // Generate realistic sensor data
-        temperatureData.push(20 + Math.sin(i * 0.5) * 5 + Math.random() * 2);
-        humidityData.push(50 + Math.cos(i * 0.3) * 15 + Math.random() * 5);
-        pressureData.push(1013 + Math.sin(i * 0.2) * 10 + Math.random() * 3);
-      }
-      
-      // Simulate the data structure that the real loadSensorData function expects
-      const demoDatasetsByMeasurement = {
-        'demo:temperature': {
-          timestamps: timestamps,
-          values: temperatureData
-        },
-        'demo:humidity': {
-          timestamps: timestamps,
-          values: humidityData
-        },
-        'demo:pressure': {
-          timestamps: timestamps,
-          values: pressureData
-        }
-      };
-      
-      // Render chart with demo data
-      if (typeof echarts !== 'undefined') {
-        if (!chart) {
-          chart = echarts.init(document.getElementById('sensorChart'));
-        }
-        
-        const xAxisData = timestamps.map(t => new Date(t).toLocaleString());
-        
-        const series = [
-          {
-            name: 'demo (temperature)',
-            type: 'line',
-            data: temperatureData,
-            lineStyle: { color: '#1e88e5', width: 2 },
-            itemStyle: { color: '#1e88e5' },
-            symbol: 'circle',
-            symbolSize: 4,
-            smooth: true
-          },
-          {
-            name: 'demo (humidity)',
-            type: 'line',
-            data: humidityData,
-            lineStyle: { color: '#e53935', width: 2 },
-            itemStyle: { color: '#e53935' },
-            symbol: 'circle',
-            symbolSize: 4,
-            smooth: true
-          },
-          {
-            name: 'demo (pressure)',
-            type: 'line',
-            data: pressureData,
-            lineStyle: { color: '#43a047', width: 2 },
-            itemStyle: { color: '#43a047' },
-            symbol: 'circle',
-            symbolSize: 4,
-            smooth: true
-          }
-        ];
-        
-        const option = {
-          title: {
-            text: 'Demo Sensor Data',
-            textStyle: {
-              color: '#1976d2',
-              fontSize: 16,
-              fontWeight: 'bold'
-            }
-          },
-          tooltip: {
-            trigger: 'axis',
-            axisPointer: { type: 'cross' },
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            borderColor: '#ccc',
-            borderWidth: 1,
-            textStyle: { color: '#333' }
-          },
-          legend: {
-            data: series.map(s => s.name),
-            bottom: 10,
-            textStyle: { color: '#666' }
-          },
-          grid: {
-            left: '60px',
-            right: '60px',
-            bottom: '80px',
-            top: '60px',
-            containLabel: true
-          },
-          xAxis: {
-            type: 'category',
-            data: xAxisData,
-            axisLabel: {
-              color: '#666',
-              rotate: 45,
-              formatter: function(value) {
-                return value.split(', ')[1] || value;
-              }
-            },
-            axisLine: { lineStyle: { color: '#ccc' } }
-          },
-          yAxis: {
-            type: 'value',
-            axisLabel: { color: '#666' },
-            axisLine: { lineStyle: { color: '#ccc' } },
-            splitLine: { lineStyle: { color: '#eee' } }
-          },
-          series: series,
-          animation: true,
-          animationDuration: 1000
-        };
-        
-        chart.setOption(option, true); // notMerge=true to prevent series from sticking around
-      }
-      
-      // Update statistics table with demo data
-      const statsTable = document.getElementById('stats-table').querySelector('tbody');
-      statsTable.innerHTML = '';
-      
-      [
-        { label: 'demo (temperature)', values: temperatureData },
-        { label: 'demo (humidity)', values: humidityData },
-        { label: 'demo (pressure)', values: pressureData }
-      ].forEach(dataset => {
-        const min = Math.min(...dataset.values);
-        const max = Math.max(...dataset.values);
-        const avg = dataset.values.reduce((a, b) => a + b, 0) / dataset.values.length;
-        
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${dataset.label}</td>
-          <td>${min.toFixed(2)}</td>
-          <td>${avg.toFixed(2)}</td>
-          <td>${max.toFixed(2)}</td>
-        `;
-        statsTable.appendChild(row);
-      });
-    }
+
+
+
     
-    // Add demo button to controls section
-    document.addEventListener('DOMContentLoaded', function() {
-      const controlsSection = document.querySelector('.controls-section');
-      if (controlsSection) {
-        const demoButton = document.createElement('button');
-        demoButton.textContent = '📊 Demo Data';
-        demoButton.className = 'md-button md-button-outlined';
-        demoButton.style.marginLeft = 'var(--md-spacing-md)';
-        demoButton.onclick = loadDemoData;
-        controlsSection.appendChild(demoButton);
-      }
-    });
+
   </script>
 </body>
 </html>
