@@ -1132,7 +1132,7 @@
             animationDuration: 1000
           };
           
-          chart.setOption(option);
+          chart.setOption(option, true); // notMerge=true to prevent series from sticking around when deselected
         } else if (typeof FallbackChart !== 'undefined') {
           // Use fallback chart implementation
           if (chart) {
@@ -1373,7 +1373,7 @@
           animationDuration: 1000
         };
         
-        chart.setOption(option);
+        chart.setOption(option, true); // notMerge=true to prevent series from sticking around
       }
       
       // Update statistics table with demo data
