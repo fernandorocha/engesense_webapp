@@ -53,6 +53,8 @@ VALUES ('Engesense', 'Default Engesense Organization', 'your-influx-url', 'your-
 ```
 
 ### Step 3: Add New Columns to Users Table
+**Note**: SQLite doesn't support `CURRENT_TIMESTAMP` as default in `ALTER TABLE`, so timestamp columns are added without defaults and updated separately.
+
 ```sql
 ALTER TABLE users ADD COLUMN organization_id INTEGER REFERENCES organizations(id);
 ALTER TABLE users ADD COLUMN first_name TEXT;
@@ -63,12 +65,12 @@ ALTER TABLE users ADD COLUMN job_title TEXT;
 ALTER TABLE users ADD COLUMN status TEXT CHECK(status IN ('active','inactive','suspended')) DEFAULT 'active';
 ALTER TABLE users ADD COLUMN timezone TEXT DEFAULT 'UTC';
 ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en';
-ALTER TABLE users ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;
-ALTER TABLE users ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE users ADD COLUMN created_at DATETIME;
+ALTER TABLE users ADD COLUMN updated_at DATETIME;
 ALTER TABLE users ADD COLUMN last_login_at DATETIME;
 ```
 
-### Step 4: Update Existing Users
+### Step 4: Update Existing Users with Timestamps
 ```sql
 UPDATE users SET 
   organization_id = (SELECT id FROM organizations WHERE name = 'Engesense'),
@@ -108,6 +110,12 @@ WHERE organization_id IS NULL;
 - Responsive design for mobile devices
 
 ## Troubleshooting
+
+### "Cannot add a column with non-constant default" Error
+This SQLite error occurs when trying to add timestamp columns with `CURRENT_TIMESTAMP` default. **This has been fixed in the updated migration script**. If you see this error:
+
+1. Make sure you have the latest migration script (`node scripts/migrate.js`)
+2. The script now adds timestamp columns without defaults and sets them via UPDATE
 
 ### "duplicate column name" Errors
 This is normal - it means some columns already exist. The migration script handles this automatically.

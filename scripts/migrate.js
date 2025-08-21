@@ -85,6 +85,8 @@ function migrateUsersTable() {
     const defaultOrgId = orgRow.id;
     
     // Add new columns to users table
+    // Note: SQLite doesn't support CURRENT_TIMESTAMP as default in ALTER TABLE
+    // So we add timestamp columns with NULL default and update them separately
     const alterQueries = [
       `ALTER TABLE users ADD COLUMN organization_id INTEGER REFERENCES organizations(id)`,
       `ALTER TABLE users ADD COLUMN first_name TEXT`,
@@ -95,8 +97,8 @@ function migrateUsersTable() {
       `ALTER TABLE users ADD COLUMN status TEXT CHECK(status IN ('active','inactive','suspended')) DEFAULT 'active'`,
       `ALTER TABLE users ADD COLUMN timezone TEXT DEFAULT 'UTC'`,
       `ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en'`,
-      `ALTER TABLE users ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP`,
-      `ALTER TABLE users ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP`,
+      `ALTER TABLE users ADD COLUMN created_at DATETIME`,
+      `ALTER TABLE users ADD COLUMN updated_at DATETIME`,
       `ALTER TABLE users ADD COLUMN last_login_at DATETIME`
     ];
 
@@ -131,7 +133,7 @@ function migrateUsersTable() {
 }
 
 function updateExistingUsers(defaultOrgId) {
-  logger.info('Step 6: Updating existing users with default organization...');
+  logger.info('Step 6: Updating existing users with default organization and timestamps...');
   
   db.run(
     `UPDATE users SET 
@@ -149,7 +151,7 @@ function updateExistingUsers(defaultOrgId) {
         logger.error('Failed to update existing users', { error: err.message });
         process.exit(1);
       } else {
-        logger.info(`Updated ${this.changes} existing users with default organization`);
+        logger.info(`Updated ${this.changes} existing users with default organization and timestamps`);
         
         // Verify migration
         verifyMigration();
