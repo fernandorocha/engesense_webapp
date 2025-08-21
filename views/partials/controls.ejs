@@ -1,0 +1,114 @@
+<!-- Dashboard Controls Section -->
+<div class="controls-section">
+  <!-- Bucket Selection -->
+  <div class="control-group">
+    <label class="control-label">Data Sources</label>
+    <div class="dropdown-container" id="bucketsDropdown">
+      <div class="dropdown-trigger" tabindex="0">
+        <span class="dropdown-text">Loading buckets...</span>
+        <span class="dropdown-arrow">▼</span>
+      </div>
+      <div class="dropdown-content">
+        <!-- Options will be populated dynamically -->
+      </div>
+    </div>
+  </div>
+  
+  <!-- Measurement Selection -->
+  <div class="control-group">
+    <label class="control-label">Measurements</label>
+    <div class="dropdown-container" id="measurementsDropdown">
+      <div class="dropdown-trigger" tabindex="0">
+        <span class="dropdown-text">Select buckets first</span>
+        <span class="dropdown-arrow">▼</span>
+      </div>
+      <div class="dropdown-content">
+        <!-- Options will be populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Time Range Controls -->
+  <div class="control-group">
+    <label class="control-label">Time Range</label>
+    <div class="time-range-group">
+      <!-- Mode toggles -->
+      <div class="time-mode-buttons">
+        <button id="btn-relative" class="md-button md-button-filled md-button-small active">Relative</button>
+        <button id="btn-absolute" class="md-button md-button-outlined md-button-small">Calendar</button>
+      </div>
+
+      <!-- Relative-range controls -->
+      <div id="relative-controls" class="time-quick-buttons">
+        <select id="rangePicker" class="md-select">
+          <option value="-5m">Last 5 minutes</option>
+          <option value="-15m">Last 15 minutes</option>
+          <option value="-30m">Last 30 minutes</option>
+          <option value="-1h" selected>Last 1 hour</option>
+          <option value="-6h">Last 6 hours</option>
+          <option value="-12h">Last 12 hours</option>
+          <option value="-1d">Last 1 day</option>
+          <option value="-7d">Last 7 days</option>
+          <option value="-30d">Last 30 days</option>
+        </select>
+        
+        <div class="time-quick-buttons">
+          <button id="btn-1h" class="md-button md-button-outlined md-button-small">1h</button>
+          <button id="btn-6h" class="md-button md-button-outlined md-button-small">6h</button>
+          <button id="btn-1d" class="md-button md-button-outlined md-button-small">1d</button>
+          <button id="btn-7d" class="md-button md-button-outlined md-button-small">7d</button>
+          <button id="btn-30d" class="md-button md-button-outlined md-button-small">30d</button>
+        </div>
+      </div>
+
+      <!-- Absolute time controls -->
+      <div id="absolute-controls" style="display: none;">
+        <input
+          id="dateRangePicker"
+          type="text"
+          placeholder="Select date & time range"
+          readonly
+          style="min-width: 250px; padding: var(--md-spacing-sm); border: 1px solid var(--md-outline); border-radius: var(--md-radius-sm);"
+        />
+      </div>
+      
+      <!-- Refresh button -->
+      <button id="refresh-btn" class="md-button md-button-filled md-button-small" style="background-color: var(--md-success);">
+        <span class="md-icon md-icon-sm">🔄</span>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Export section -->
+  <div class="control-group">
+    <label class="control-label">Export Data</label>
+    <div class="export-group">
+      <form method="GET" action="/export" class="export-form">
+        <input type="hidden" name="range" id="csvRange" value="">
+        <input type="hidden" name="start" id="csvStart" value="">
+        <input type="hidden" name="stop" id="csvStop" value="">
+        <input type="hidden" name="buckets" id="csvBuckets" value="">
+        <input type="hidden" name="measurements" id="csvMeasurements" value="">
+        <input type="hidden" name="format" value="csv">
+        <button type="submit" class="md-button md-button-outlined md-button-small">
+          <span class="md-icon md-icon-sm">📄</span>
+          CSV
+        </button>
+      </form>
+      
+      <form method="GET" action="/export" class="export-form">
+        <input type="hidden" name="range" id="excelRange" value="">
+        <input type="hidden" name="start" id="excelStart" value="">
+        <input type="hidden" name="stop" id="excelStop" value="">
+        <input type="hidden" name="buckets" id="excelBuckets" value="">
+        <input type="hidden" name="measurements" id="excelMeasurements" value="">
+        <input type="hidden" name="format" value="excel">
+        <button type="submit" class="md-button md-button-outlined md-button-small" style="color: var(--md-success); border-color: var(--md-success);">
+          <span class="md-icon md-icon-sm">📊</span>
+          Excel
+        </button>
+      </form>
+    </div>
+  </div>
+</div>

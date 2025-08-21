@@ -1,0 +1,25 @@
+<!-- Dashboard Header -->
+<header class="dashboard-header">
+  <div class="header-content">
+    <div class="header-logo">
+      <img src="/images/logo.jpg" alt="Engesense Logo">
+    </div>
+    <h1 class="welcome-text">Welcome, <%= user.username %> (<%= user.role %>)</h1>
+  </div>
+  
+  <div style="display: flex; align-items: center; gap: var(--md-spacing-md);">
+    <% if (user.role === 'admin') { %>
+      <a href="/admin/users" class="md-button md-button-outlined md-button-small">
+        <span class="md-icon md-icon-sm">👥</span>
+        Manage Users
+      </a>
+    <% } %>
+    
+    <form method="POST" action="/logout">
+      <button type="submit" class="md-button md-button-text">
+        <span class="md-icon md-icon-sm">🚪</span>
+        Logout
+      </button>
+    </form>
+  </div>
+</header>

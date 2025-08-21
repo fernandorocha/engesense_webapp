@@ -72,7 +72,7 @@ router.get('/api/measurements', ensureAuth, async (req, res) => {
 });
 
 router.get('/api/sensors', ensureAuth, validateSensorQuery, async (req, res) => {
-  const { range, start, stop, limit = '5000', buckets, measurements } = req.query;
+  const { range, start, stop, buckets, measurements } = req.query;
 
   try {
     const organization = req.session.user.organization;
@@ -94,7 +94,6 @@ router.get('/api/sensors', ensureAuth, validateSensorQuery, async (req, res) => 
       range,
       start,
       stop,
-      limit: parseInt(limit, 10),
       buckets: bucketList,
       measurements: measurementList
     });
@@ -104,7 +103,6 @@ router.get('/api/sensors', ensureAuth, validateSensorQuery, async (req, res) => 
       range,
       start,
       stop,
-      limit,
       buckets: bucketList,
       measurements: measurementList,
       organization,
@@ -118,7 +116,6 @@ router.get('/api/sensors', ensureAuth, validateSensorQuery, async (req, res) => 
       range,
       start,
       stop,
-      limit,
       buckets,
       measurements,
       organization: req.session.user.organization,

@@ -5,7 +5,8 @@ const logger = require('./logger');
 
 const client = new InfluxDB({
   url:   process.env.INFLUX_URL,
-  token: process.env.INFLUX_TOKEN
+  token: process.env.INFLUX_TOKEN,
+  timeout: 0 // Remove any timeout limits for queries
 });
 
 /**
@@ -26,6 +27,7 @@ async function getBuckets(organization) {
     `;
     
     logger.debug('Executing buckets query', { query: flux.trim(), organization });
+    console.log('InfluxDB Query - getBuckets():', flux.trim());
 
     const buckets = [];
     return new Promise((resolve, reject) => {
@@ -52,7 +54,7 @@ async function getBuckets(organization) {
           });
           resolve(buckets);
         }
-      });
+      }, { /* No query options - remove any default limits */ });
     });
   } catch (err) {
     logger.error('InfluxDB connection failed', { error: err.message });
@@ -80,6 +82,7 @@ async function getMeasurements(organization, buckets) {
         schema.measurements(bucket: "${bucket}")
       `;
       logger.debug('Executing measurements query', { query: flux.trim(), bucket });
+      console.log(`InfluxDB Query - getMeasurements() for bucket "${bucket}":`, flux.trim());
       await new Promise((resolve, reject) => {
         queryApi.queryRows(flux, {
           next(row, tableMeta) {
@@ -109,7 +112,7 @@ async function getMeasurements(organization, buckets) {
             });
             resolve();
           }
-        });
+        }, { /* No query options - remove any default limits */ });
       });
     }
     return Array.from(measurementsSet);
@@ -119,6 +122,8 @@ async function getMeasurements(organization, buckets) {
   }
 }
 
+
+
 /**
  * Query sensor readings with flexible time range support
  * @param {Object} params - Query parameters
@@ -126,12 +131,11 @@ async function getMeasurements(organization, buckets) {
  * @param {string} [params.range] - Relative time range (e.g., '-1h', '-30m')
  * @param {string} [params.start] - Start time (ISO 8601)
  * @param {string} [params.stop] - Stop time (ISO 8601)
- * @param {number} [params.limit=1000] - Maximum number of readings to return
  * @param {Array<string>} params.buckets - Array of bucket names to query (required)
  * @param {Array<string>} [params.measurements] - Array of measurement names to query
  * @returns {Promise<Array>} Array of sensor readings with measurement info
  */
-async function querySensorReadings({ organization, range, start, stop, limit = 1000, buckets, measurements }) {
+async function querySensorReadings({ organization, range, start, stop, buckets, measurements }) {
   if (!organization) {
     throw new Error('Organization is required for InfluxDB queries');
   }
@@ -178,33 +182,32 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
     rangeClause = `|> range(start: ${range || '-1h'})`;
   }
 
-  const readings = [];
+  let readings = [];
   
   try {
-    // Query each bucket with its specific measurements
-    for (const bucket of buckets) {
+    // Create promises for parallel bucket processing
+    const bucketPromises = buckets.map(async (bucket) => {
       const bucketSpecificMeasurements = bucketMeasurements[bucket];
       
       // Skip buckets that have no measurements to query
       if (!bucketSpecificMeasurements || bucketSpecificMeasurements.length === 0) {
         logger.debug('Skipping bucket with no measurements', { bucket });
-        continue;
+        return [];
       }
 
       // Remove duplicates from measurements for this bucket
       const uniqueMeasurements = [...new Set(bucketSpecificMeasurements)];
 
-      // Build measurement filter for this specific bucket
+      // Build measurement filter using OR conditions as requested
       const measurementFilter = uniqueMeasurements.length === 1 
-        ? `r._measurement == "${uniqueMeasurements[0]}"` 
-        : `contains(value: r._measurement, set: [${uniqueMeasurements.map(m => `"${m}"`).join(', ')}])`;
+        ? `r["_measurement"] == "${uniqueMeasurements[0]}"` 
+        : uniqueMeasurements.map(m => `r["_measurement"] == "${m}"`).join(' or ');
 
       const flux = `
         from(bucket: "${bucket}")
           ${rangeClause}
-          |> filter(fn: (r) => ${measurementFilter} and r._field == "value")
+          |> filter(fn: (r) => (${measurementFilter}) and r._field == "value")
           |> sort(columns: ["_time"], desc: false)
-          |> limit(n: ${Math.ceil(limit / buckets.length)})
       `;
       
       logger.debug('Executing Flux query', { 
@@ -213,13 +216,16 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
         measurements: uniqueMeasurements,
         organization 
       });
+      console.log(`InfluxDB Query - querySensorReadings() for bucket "${bucket}":`, flux.trim());
 
-      await new Promise((resolve, reject) => {
+      return new Promise((resolve, reject) => {
+        const bucketReadings = [];
+        
         queryApi.queryRows(flux, {
           next(row, tableMeta) {
             try {
               const o = tableMeta.toObject(row);
-              readings.push({ 
+              bucketReadings.push({ 
                 timestamp: o._time, 
                 value: parseFloat(o._value),
                 measurement: o._measurement,
@@ -244,32 +250,57 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
               bucket,
               measurements: uniqueMeasurements,
               organization,
-              pointsReturned: readings.filter(r => r.bucket === bucket).length
+              pointsReturned: bucketReadings.length
             });
-            resolve();
+            resolve(bucketReadings);
           }
-        });
+        }, { /* No query options - remove any default limits */ });
       });
-    }
+    });
+
+    // Execute all bucket queries in parallel with improved error handling
+    const bucketResults = await Promise.allSettled(bucketPromises);
+    
+    // Process results and handle any rejections gracefully
+    bucketResults.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        // Use concat instead of spread operator for large arrays to avoid call stack overflow
+        readings = readings.concat(result.value);
+      } else {
+        logger.warn('Bucket query failed, skipping bucket', { 
+          bucket: buckets[index], 
+          error: result.reason?.message || 'Unknown error' 
+        });
+      }
+    });
   } catch (err) {
     logger.error('InfluxDB connection failed', { error: err.message, organization });
     throw err;
   }
 
-  // Sort combined results by timestamp and apply overall limit
-  readings.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-  const limitedReadings = readings.slice(0, limit);
+  // Sort combined results by timestamp efficiently for large datasets
+  // Since individual bucket queries are already sorted, we only need to merge-sort for multiple buckets
+  if (buckets.length === 1) {
+    // Single bucket: data is already sorted from InfluxDB
+    logger.debug('Single bucket query, data already sorted', { pointsReturned: readings.length });
+  } else {
+    // Multiple buckets: use efficient merge approach
+    logger.debug('Multiple bucket query, merging sorted results', { 
+      pointsReturned: readings.length, 
+      bucketCount: buckets.length 
+    });
+    readings.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  }
   
   logger.info('InfluxDB query completed', { 
-    pointsReturned: limitedReadings.length,
+    pointsReturned: readings.length,
     buckets: buckets,
     bucketMeasurements: bucketMeasurements,
     originalMeasurements: queryMeasurements,
-    organization,
-    limit
+    organization
   });
   
-  return limitedReadings;
+  return readings;
 }
 
 module.exports = { querySensorReadings, getBuckets, getMeasurements };

@@ -84,7 +84,7 @@ function groupDataForCSV(readings) {
 }
 
 router.get('/export', ensureAuth, validateSensorQuery, async (req, res) => {
-  const { range, start, stop, limit = '5000', buckets, measurements, format = 'csv' } = req.query;
+  const { range, start, stop, buckets, measurements, format = 'csv' } = req.query;
 
   try {
     const organization = req.session.user.organization;
@@ -106,7 +106,6 @@ router.get('/export', ensureAuth, validateSensorQuery, async (req, res) => {
       range,
       start,
       stop,
-      limit: parseInt(limit, 10),
       buckets: bucketList,
       measurements: measurementList
     });
@@ -185,7 +184,6 @@ router.get('/export', ensureAuth, validateSensorQuery, async (req, res) => {
       range,
       start,
       stop,
-      limit,
       buckets,
       measurements,
       organization: req.session.user.organization
