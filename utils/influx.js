@@ -121,50 +121,10 @@ async function getMeasurements(organization, buckets) {
   }
 }
 
-/**
- * Calculate appropriate aggregation window based on time range
- * @param {string} range - Time range (e.g., '-1h', '-7d', '-30d')
- * @param {Date} start - Start date
- * @param {Date} stop - Stop date  
- * @returns {Object} Aggregation settings
- */
-function calculateAggregationWindow(range, start, stop) {
-  let rangeDuration;
-  
-  if (start && stop) {
-    rangeDuration = (stop.getTime() - start.getTime()) / 1000; // in seconds
-  } else if (range) {
-    const match = range.match(/^-?(\d+)([smhd])$/);
-    if (match) {
-      const value = parseInt(match[1], 10);
-      const unit = match[2];
-      const multipliers = { s: 1, m: 60, h: 3600, d: 86400 };
-      rangeDuration = value * multipliers[unit];
-    } else {
-      rangeDuration = 3600; // default to 1 hour
-    }
-  } else {
-    rangeDuration = 3600; // default to 1 hour
-  }
 
-  // Determine aggregation based on time range duration - more aggressive for performance
-  if (rangeDuration <= 3600) { // <= 1 hour: no aggregation
-    return { window: null, fn: null };
-  } else if (rangeDuration <= 14400) { // <= 4 hours: 1 minute windows
-    return { window: '1m', fn: 'mean' };
-  } else if (rangeDuration <= 86400) { // <= 1 day: 5 minute windows
-    return { window: '5m', fn: 'mean' };
-  } else if (rangeDuration <= 259200) { // <= 3 days: 15 minute windows
-    return { window: '15m', fn: 'mean' };
-  } else if (rangeDuration <= 604800) { // <= 7 days: 1 hour windows
-    return { window: '1h', fn: 'mean' };
-  } else { // > 7 days: 4 hour windows
-    return { window: '4h', fn: 'mean' };
-  }
-}
 
 /**
- * Query sensor readings with flexible time range support and intelligent aggregation
+ * Query sensor readings with flexible time range support
  * @param {Object} params - Query parameters
  * @param {string} params.organization - Organization name for InfluxDB connection
  * @param {string} [params.range] - Relative time range (e.g., '-1h', '-30m')
@@ -186,19 +146,6 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
   
   const queryApi = client.getQueryApi(organization);
   const queryMeasurements = measurements && measurements.length > 0 ? measurements : ['home_pt'];
-
-  // Calculate aggregation settings based on time range
-  const startDate = start ? new Date(start) : null;
-  const stopDate = stop ? new Date(stop) : null;
-  const aggregation = calculateAggregationWindow(range, startDate, stopDate);
-  
-  logger.debug('Aggregation settings calculated', { 
-    range, 
-    start, 
-    stop, 
-    aggregation,
-    organization 
-  });
 
   // Group measurements by bucket to maintain bucket-measurement relationships
   const bucketMeasurements = {};
@@ -251,16 +198,10 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
       // Remove duplicates from measurements for this bucket
       const uniqueMeasurements = [...new Set(bucketSpecificMeasurements)];
 
-      // Build measurement filter for this specific bucket
+      // Build measurement filter using OR conditions as requested
       const measurementFilter = uniqueMeasurements.length === 1 
-        ? `r._measurement == "${uniqueMeasurements[0]}"` 
-        : `contains(value: r._measurement, set: [${uniqueMeasurements.map(m => `"${m}"`).join(', ')}])`;
-
-      // Build aggregation clause if needed
-      let aggregationClause = '';
-      if (aggregation.window && aggregation.fn) {
-        aggregationClause = `|> aggregateWindow(every: ${aggregation.window}, fn: ${aggregation.fn}, createEmpty: false)`;
-      }
+        ? `r["_measurement"] == "${uniqueMeasurements[0]}"` 
+        : uniqueMeasurements.map(m => `r["_measurement"] == "${m}"`).join(' or ');
 
       // Adjust limit per bucket for better distribution
       const bucketLimit = Math.ceil(limit / buckets.length);
@@ -268,8 +209,7 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
       const flux = `
         from(bucket: "${bucket}")
           ${rangeClause}
-          |> filter(fn: (r) => ${measurementFilter} and r._field == "value")
-          ${aggregationClause}
+          |> filter(fn: (r) => (${measurementFilter}) and r._field == "value")
           |> sort(columns: ["_time"], desc: false)
           |> limit(n: ${bucketLimit})
       `;
@@ -278,7 +218,6 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
         query: flux.trim(), 
         bucket, 
         measurements: uniqueMeasurements,
-        aggregation,
         organization 
       });
       console.log(`InfluxDB Query - querySensorReadings() for bucket "${bucket}":`, flux.trim());
@@ -335,8 +274,7 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
               bucket,
               measurements: uniqueMeasurements,
               organization,
-              pointsReturned: bucketReadings.length,
-              aggregation
+              pointsReturned: bucketReadings.length
             });
             resolve(bucketReadings);
           }
@@ -372,7 +310,6 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
     buckets: buckets,
     bucketMeasurements: bucketMeasurements,
     originalMeasurements: queryMeasurements,
-    aggregation: aggregation,
     organization,
     limit
   });
