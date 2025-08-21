@@ -141,11 +141,15 @@
       
       .users-table {
         font-size: var(--md-font-size-caption);
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
       }
       
       .users-table th,
       .users-table td {
         padding: var(--md-spacing-sm);
+        min-width: 100px;
       }
     }
     
@@ -155,6 +159,21 @@
         overflow-x: auto;
         white-space: nowrap;
       }
+      
+      .users-table th,
+      .users-table td {
+        min-width: 80px;
+        font-size: var(--md-font-size-caption);
+      }
+    }
+    
+    /* Additional utility classes for status indicators */
+    .md-text-success {
+      color: #2e7d32 !important;
+    }
+    
+    .md-text-error {
+      color: #d32f2f !important;
     }
   </style>
 </head>
@@ -178,8 +197,12 @@
           <tr>
             <th>User ID</th>
             <th>Username</th>
+            <th>Name</th>
+            <th>Email</th>
             <th>Role</th>
             <th>Organization</th>
+            <th>Status</th>
+            <th>Created</th>
           </tr>
         </thead>
         <tbody>
@@ -187,12 +210,20 @@
             <tr>
               <td><%= u.id %></td>
               <td><%= u.username %></td>
+              <td><%= [u.first_name, u.last_name].filter(n => n).join(' ') || '-' %></td>
+              <td><%= u.email || '-' %></td>
               <td>
                 <span class="<%= u.role === 'admin' ? 'md-text-primary' : '' %>" style="font-weight: <%= u.role === 'admin' ? 'var(--md-font-weight-medium)' : 'var(--md-font-weight-regular)' %>;">
                   <%= u.role %>
                 </span>
               </td>
-              <td><%= u.organization %></td>
+              <td><%= u.organization_name || '-' %></td>
+              <td>
+                <span class="<%= u.status === 'active' ? 'md-text-success' : u.status === 'suspended' ? 'md-text-error' : '' %>" style="font-weight: var(--md-font-weight-medium);">
+                  <%= u.status || 'active' %>
+                </span>
+              </td>
+              <td><%= u.created_at ? new Date(u.created_at).toLocaleDateString() : '-' %></td>
             </tr>
           <% }) %>
         </tbody>
@@ -203,7 +234,7 @@
       <h2 class="section-title">Create New User</h2>
       <form method="POST" action="/admin/users" class="create-user-form">
         <div class="form-field">
-          <label class="md-input-label" for="username">Username</label>
+          <label class="md-input-label" for="username">Username *</label>
           <input 
             id="username"
             name="username" 
@@ -214,7 +245,7 @@
         </div>
         
         <div class="form-field">
-          <label class="md-input-label" for="password">Password</label>
+          <label class="md-input-label" for="password">Password *</label>
           <input 
             id="password"
             name="password" 
@@ -226,22 +257,73 @@
         </div>
         
         <div class="form-field">
-          <label class="md-input-label" for="role">Role</label>
-          <select id="role" name="role" class="form-select">
+          <label class="md-input-label" for="first_name">First Name</label>
+          <input 
+            id="first_name"
+            name="first_name" 
+            class="md-input" 
+            placeholder="Enter first name"
+          />
+        </div>
+        
+        <div class="form-field">
+          <label class="md-input-label" for="last_name">Last Name</label>
+          <input 
+            id="last_name"
+            name="last_name" 
+            class="md-input" 
+            placeholder="Enter last name"
+          />
+        </div>
+        
+        <div class="form-field">
+          <label class="md-input-label" for="email">Email</label>
+          <input 
+            id="email"
+            name="email" 
+            type="email"
+            class="md-input" 
+            placeholder="Enter email address"
+          />
+        </div>
+        
+        <div class="form-field">
+          <label class="md-input-label" for="phone">Phone</label>
+          <input 
+            id="phone"
+            name="phone" 
+            type="tel"
+            class="md-input" 
+            placeholder="Enter phone number"
+          />
+        </div>
+        
+        <div class="form-field">
+          <label class="md-input-label" for="job_title">Job Title</label>
+          <input 
+            id="job_title"
+            name="job_title" 
+            class="md-input" 
+            placeholder="Enter job title"
+          />
+        </div>
+        
+        <div class="form-field">
+          <label class="md-input-label" for="role">Role *</label>
+          <select id="role" name="role" class="form-select" required>
             <option value="client">Client</option>
             <option value="admin">Admin</option>
           </select>
         </div>
         
         <div class="form-field">
-          <label class="md-input-label" for="organization">Organization</label>
-          <input 
-            id="organization"
-            name="organization" 
-            class="md-input"
-            placeholder="Enter organization" 
-            required 
-          />
+          <label class="md-input-label" for="organization_id">Organization *</label>
+          <select id="organization_id" name="organization_id" class="form-select" required>
+            <option value="">Select Organization</option>
+            <% organizations.forEach(org => { %>
+              <option value="<%= org.id %>"><%= org.name %></option>
+            <% }) %>
+          </select>
         </div>
         
         <button type="submit" class="md-button md-button-filled create-button">

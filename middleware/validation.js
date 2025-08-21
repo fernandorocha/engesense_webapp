@@ -42,7 +42,7 @@ function validateSensorQuery(req, res, next) {
  * Validates user creation parameters
  */
 function validateUserCreation(req, res, next) {
-  const { username, password, role } = req.body;
+  const { username, password, role, organization_id, email } = req.body;
   
   if (!username || typeof username !== 'string' || username.trim().length < 3) {
     return res.status(400).json({ 
@@ -62,8 +62,30 @@ function validateUserCreation(req, res, next) {
     });
   }
   
-  // Sanitize username
+  if (!organization_id || isNaN(parseInt(organization_id))) {
+    return res.status(400).json({ 
+      error: 'Valid organization is required.' 
+    });
+  }
+  
+  // Email validation (optional but if provided must be valid)
+  if (email && email.trim()) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return res.status(400).json({ 
+        error: 'Invalid email format.' 
+      });
+    }
+  }
+  
+  // Sanitize inputs
   req.body.username = username.trim().toLowerCase();
+  req.body.organization_id = parseInt(organization_id);
+  if (req.body.first_name) req.body.first_name = req.body.first_name.trim();
+  if (req.body.last_name) req.body.last_name = req.body.last_name.trim();
+  if (req.body.email) req.body.email = req.body.email.trim().toLowerCase();
+  if (req.body.phone) req.body.phone = req.body.phone.trim();
+  if (req.body.job_title) req.body.job_title = req.body.job_title.trim();
   
   next();
 }
