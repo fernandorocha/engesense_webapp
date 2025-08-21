@@ -87,9 +87,9 @@ router.get('/export', ensureAuth, validateSensorQuery, async (req, res) => {
   const { range, start, stop, buckets, measurements, format = 'csv' } = req.query;
 
   try {
-    const organization = req.session.user.organization;
+    const organizationId = req.session.user.organization_id;
     
-    if (!organization) {
+    if (!organizationId) {
       return res.status(400).send('User organization not found');
     }
     
@@ -102,7 +102,7 @@ router.get('/export', ensureAuth, validateSensorQuery, async (req, res) => {
     }
     
     const readings = await querySensorReadings({
-      organization,
+      organizationId,
       range,
       start,
       stop,
@@ -112,7 +112,8 @@ router.get('/export', ensureAuth, validateSensorQuery, async (req, res) => {
     
     if (readings.length === 0) {
       logger.warn('No data found for export', { 
-        range, start, stop, buckets: bucketList, measurements: measurementList, organization 
+        range, start, stop, buckets: bucketList, measurements: measurementList, 
+        organizationId, organization: req.session.user.organization 
       });
       return res.status(404).send('No sensor data found for the specified parameters.');
     }
@@ -151,7 +152,8 @@ router.get('/export', ensureAuth, validateSensorQuery, async (req, res) => {
         stop,
         buckets: bucketList,
         measurements: measurementList,
-        organization
+        organizationId,
+        organization: req.session.user.organization
       });
     } else {
       // CSV export (default) - group by timestamp with bucket:measurement columns
@@ -173,7 +175,8 @@ router.get('/export', ensureAuth, validateSensorQuery, async (req, res) => {
         stop,
         buckets: bucketList,
         measurements: measurementList,
-        organization
+        organizationId,
+        organization: req.session.user.organization
       });
     }
     
@@ -186,6 +189,7 @@ router.get('/export', ensureAuth, validateSensorQuery, async (req, res) => {
       stop,
       buckets,
       measurements,
+      organizationId: req.session.user.organization_id,
       organization: req.session.user.organization
     });
     res.status(500).send(`Error generating ${format.toUpperCase()} export.`);

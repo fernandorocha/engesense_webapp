@@ -16,9 +16,9 @@ router.get('/login', (req, res) => {
 router.post('/login', validateLogin, (req, res) => {
   const { username, password } = req.body;
   
-  // Join with organizations table to get organization name
+  // Join with organizations table to get organization details
   db.get(`
-    SELECT u.*, o.name as organization_name 
+    SELECT u.*, o.name as organization_name, o.id as org_id
     FROM users u 
     LEFT JOIN organizations o ON u.organization_id = o.id 
     WHERE u.username = ?
@@ -37,14 +37,16 @@ router.post('/login', validateLogin, (req, res) => {
       id: user.id, 
       username: user.username, 
       role: user.role,
-      organization: user.organization_name || 'Unknown'
+      organization: user.organization_name || 'Unknown',
+      organization_id: user.org_id
     };
     
     logger.info('User logged in successfully', { 
       userId: user.id, 
       username: user.username,
       role: user.role,
-      organization: user.organization_name || 'Unknown'
+      organization: user.organization_name || 'Unknown',
+      organization_id: user.org_id
     });
     
     res.redirect('/dashboard');

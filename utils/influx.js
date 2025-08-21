@@ -2,20 +2,80 @@
 require('dotenv').config();
 const { InfluxDB } = require('@influxdata/influxdb-client');
 const logger = require('./logger');
+const db = require('./db');
 
-const client = new InfluxDB({
-  url:   process.env.INFLUX_URL,
-  token: process.env.INFLUX_TOKEN,
-  timeout: 0 // Remove any timeout limits for queries
-});
+/**
+ * Get InfluxDB credentials for an organization
+ * @param {number} organizationId - Organization ID
+ * @returns {Promise<Object>} Object with url, token, and org_name
+ */
+function getOrganizationInfluxCredentials(organizationId) {
+  return new Promise((resolve, reject) => {
+    if (!organizationId) {
+      return reject(new Error('Organization ID is required'));
+    }
+
+    db.get(`
+      SELECT influx_url, influx_token, name 
+      FROM organizations 
+      WHERE id = ?
+    `, [organizationId], (err, org) => {
+      if (err) {
+        logger.error('Failed to fetch organization InfluxDB credentials', { 
+          error: err.message, 
+          organizationId 
+        });
+        return reject(err);
+      }
+
+      if (!org) {
+        return reject(new Error(`Organization not found: ${organizationId}`));
+      }
+
+      // Fallback to environment variables if organization credentials are empty
+      const credentials = {
+        url: org.influx_url || process.env.INFLUX_URL,
+        token: org.influx_token || process.env.INFLUX_TOKEN,
+        org_name: org.name
+      };
+
+      if (!credentials.url || !credentials.token) {
+        return reject(new Error(`InfluxDB credentials not configured for organization: ${org.name}`));
+      }
+
+      resolve(credentials);
+    });
+  });
+}
+
+/**
+ * Create InfluxDB client for a specific organization
+ * @param {number} organizationId - Organization ID
+ * @returns {Promise<Object>} Object with client and org_name
+ */
+async function getInfluxClientForOrganization(organizationId) {
+  const credentials = await getOrganizationInfluxCredentials(organizationId);
+  
+  const client = new InfluxDB({
+    url: credentials.url,
+    token: credentials.token,
+    timeout: 0 // Remove any timeout limits for queries
+  });
+
+  return {
+    client,
+    org_name: credentials.org_name
+  };
+}
 
 /**
  * Get available buckets filtered by organization
- * @param {string} organization - Organization name to filter buckets
+ * @param {number} organizationId - Organization ID to get InfluxDB credentials
  * @returns {Promise<Array>} Array of bucket names
  */
-async function getBuckets(organization) {
-  const queryApi = client.getQueryApi(organization);
+async function getBuckets(organizationId) {
+  const { client, org_name } = await getInfluxClientForOrganization(organizationId);
+  const queryApi = client.getQueryApi(org_name);
   
   try {
     const flux = `
@@ -26,7 +86,7 @@ async function getBuckets(organization) {
         |> keep(columns: ["name"])
     `;
     
-    logger.debug('Executing buckets query', { query: flux.trim(), organization });
+    logger.debug('Executing buckets query', { query: flux.trim(), organization: org_name, organizationId });
     console.log('InfluxDB Query - getBuckets():', flux.trim());
 
     const buckets = [];
@@ -43,37 +103,41 @@ async function getBuckets(organization) {
         error(err) {
           logger.error('InfluxDB buckets query error', { 
             error: err.message,
-            query: flux.trim()
+            query: flux.trim(),
+            organization: org_name,
+            organizationId
           });
           reject(err);
         },
         complete() {
           logger.info('Buckets query completed', { 
             bucketsFound: buckets.length,
-            organization
+            organization: org_name,
+            organizationId
           });
           resolve(buckets);
         }
       }, { /* No query options - remove any default limits */ });
     });
   } catch (err) {
-    logger.error('InfluxDB connection failed', { error: err.message });
+    logger.error('InfluxDB connection failed', { error: err.message, organizationId });
     throw err;
   }
 }
 
 /**
  * Get available measurements from specified buckets
- * @param {string} organization - Organization name for InfluxDB connection
+ * @param {number} organizationId - Organization ID to get InfluxDB credentials
  * @param {Array<string>} buckets - Array of bucket names
  * @returns {Promise<Array>} Array of measurement names
  */
-async function getMeasurements(organization, buckets) {
+async function getMeasurements(organizationId, buckets) {
   if (!buckets || buckets.length === 0) {
     return [];
   }
 
-  const queryApi = client.getQueryApi(organization);
+  const { client, org_name } = await getInfluxClientForOrganization(organizationId);
+  const queryApi = client.getQueryApi(org_name);
   const measurementsSet = new Set();
   try {
     for (const bucket of buckets) {
@@ -81,7 +145,7 @@ async function getMeasurements(organization, buckets) {
         import "influxdata/influxdb/schema"
         schema.measurements(bucket: "${bucket}")
       `;
-      logger.debug('Executing measurements query', { query: flux.trim(), bucket });
+      logger.debug('Executing measurements query', { query: flux.trim(), bucket, organization: org_name, organizationId });
       console.log(`InfluxDB Query - getMeasurements() for bucket "${bucket}":`, flux.trim());
       await new Promise((resolve, reject) => {
         queryApi.queryRows(flux, {
@@ -101,14 +165,18 @@ async function getMeasurements(organization, buckets) {
             logger.error('InfluxDB measurements query error', { 
               error: err.message,
               query: flux.trim(),
-              bucket
+              bucket,
+              organization: org_name,
+              organizationId
             });
             reject(err);
           },
           complete() {
             logger.info('Measurements query completed', { 
               bucket,
-              measurementsFound: Array.from(measurementsSet).filter(m => m.startsWith(`${bucket}:`)).length
+              measurementsFound: Array.from(measurementsSet).filter(m => m.startsWith(`${bucket}:`)).length,
+              organization: org_name,
+              organizationId
             });
             resolve();
           }
@@ -117,7 +185,7 @@ async function getMeasurements(organization, buckets) {
     }
     return Array.from(measurementsSet);
   } catch (err) {
-    logger.error('InfluxDB connection failed', { error: err.message });
+    logger.error('InfluxDB connection failed', { error: err.message, organizationId });
     throw err;
   }
 }
@@ -127,7 +195,7 @@ async function getMeasurements(organization, buckets) {
 /**
  * Query sensor readings with flexible time range support
  * @param {Object} params - Query parameters
- * @param {string} params.organization - Organization name for InfluxDB connection
+ * @param {number} params.organizationId - Organization ID to get InfluxDB credentials
  * @param {string} [params.range] - Relative time range (e.g., '-1h', '-30m')
  * @param {string} [params.start] - Start time (ISO 8601)
  * @param {string} [params.stop] - Stop time (ISO 8601)
@@ -135,16 +203,17 @@ async function getMeasurements(organization, buckets) {
  * @param {Array<string>} [params.measurements] - Array of measurement names to query
  * @returns {Promise<Array>} Array of sensor readings with measurement info
  */
-async function querySensorReadings({ organization, range, start, stop, buckets, measurements }) {
-  if (!organization) {
-    throw new Error('Organization is required for InfluxDB queries');
+async function querySensorReadings({ organizationId, range, start, stop, buckets, measurements }) {
+  if (!organizationId) {
+    throw new Error('Organization ID is required for InfluxDB queries');
   }
   
   if (!buckets || buckets.length === 0) {
     throw new Error('At least one bucket must be specified');
   }
   
-  const queryApi = client.getQueryApi(organization);
+  const { client, org_name } = await getInfluxClientForOrganization(organizationId);
+  const queryApi = client.getQueryApi(org_name);
   const queryMeasurements = measurements && measurements.length > 0 ? measurements : ['home_pt'];
 
   // Group measurements by bucket to maintain bucket-measurement relationships
@@ -214,7 +283,8 @@ async function querySensorReadings({ organization, range, start, stop, buckets, 
         query: flux.trim(), 
         bucket, 
         measurements: uniqueMeasurements,
-        organization 
+        organization: org_name,
+        organizationId
       });
       console.log(`InfluxDB Query - querySensorReadings() for bucket "${bucket}":`, flux.trim());
 
@@ -241,7 +311,8 @@ async function querySensorReadings({ organization, range, start, stop, buckets, 
               query: flux.trim(),
               bucket,
               measurements: uniqueMeasurements,
-              organization
+              organization: org_name,
+              organizationId
             });
             reject(err);
           },
@@ -249,7 +320,8 @@ async function querySensorReadings({ organization, range, start, stop, buckets, 
             logger.debug('Bucket query completed', { 
               bucket,
               measurements: uniqueMeasurements,
-              organization,
+              organization: org_name,
+              organizationId,
               pointsReturned: bucketReadings.length
             });
             resolve(bucketReadings);
@@ -274,7 +346,7 @@ async function querySensorReadings({ organization, range, start, stop, buckets, 
       }
     });
   } catch (err) {
-    logger.error('InfluxDB connection failed', { error: err.message, organization });
+    logger.error('InfluxDB connection failed', { error: err.message, organizationId });
     throw err;
   }
 
@@ -297,7 +369,8 @@ async function querySensorReadings({ organization, range, start, stop, buckets, 
     buckets: buckets,
     bucketMeasurements: bucketMeasurements,
     originalMeasurements: queryMeasurements,
-    organization
+    organization: org_name,
+    organizationId
   });
   
   return readings;
