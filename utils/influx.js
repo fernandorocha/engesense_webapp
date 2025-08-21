@@ -207,7 +207,7 @@ async function querySensorReadings({ organization, range, start, stop, buckets, 
         from(bucket: "${bucket}")
           ${rangeClause}
           |> filter(fn: (r) => (${measurementFilter}) and r._field == "value")
-          |> sort(columns: ["_time"], desc: false)
+          //|> sort(columns: ["_time"], desc: false)
       `;
       
       logger.debug('Executing Flux query', { 
