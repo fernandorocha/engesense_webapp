@@ -13,6 +13,10 @@ router.get(
   ensureAuth,
   ensureAdmin,
   (req, res) => {
+    // Get query parameters for success/error messages
+    const error = req.query.error || null;
+    const success = req.query.success || null;
+    
     // First check if database has been migrated to new schema
     db.all("PRAGMA table_info(users)", (err, columns) => {
       if (err) {
@@ -20,7 +24,8 @@ router.get(
         return res.status(500).render('admin_users', { 
           users: [], 
           organizations: [],
-          error: 'Failed to check database structure' 
+          error: 'Failed to check database structure',
+          success: null
         });
       }
 
@@ -36,7 +41,8 @@ router.get(
           users: [], 
           organizations: [],
           error: 'Database migration required. Please run: node scripts/migrate.js',
-          needsMigration: true
+          needsMigration: true,
+          success: null
         });
       }
 
@@ -52,7 +58,8 @@ router.get(
             return res.status(500).render('admin_users', { 
               users: [], 
               organizations: [],
-              error: 'Failed to load users' 
+              error: 'Failed to load users',
+              success: null
             });
           }
           
@@ -63,14 +70,16 @@ router.get(
               return res.status(500).render('admin_users', { 
                 users: [], 
                 organizations: [],
-                error: 'Failed to load organizations' 
+                error: 'Failed to load organizations',
+                success: null
               });
             }
             
             res.render('admin_users', { 
               users: rows, 
               organizations: organizations,
-              error: null,
+              error: error,
+              success: success,
               needsMigration: false
             });
           });
@@ -152,6 +161,222 @@ router.post(
           
           logger.info('User created successfully', { username, role, email });
           res.redirect('/admin/users');
+        }
+      );
+    });
+  }
+);
+
+// GET /admin/users/:id/edit — edit user form
+router.get(
+  '/admin/users/:id/edit',
+  ensureAuth,
+  ensureAdmin,
+  (req, res) => {
+    const userId = parseInt(req.params.id);
+    const error = req.query.error || null;
+    
+    // Check if database has been migrated first
+    db.all("PRAGMA table_info(users)", (err, columns) => {
+      if (err) {
+        logger.error('Failed to check users table structure', { error: err.message });
+        return res.redirect('/admin/users?error=Failed to check database structure');
+      }
+
+      const columnNames = columns.map(col => col.name);
+      const hasNewSchema = columnNames.includes('organization_id') && 
+                          columnNames.includes('first_name') && 
+                          columnNames.includes('created_at');
+
+      if (!hasNewSchema) {
+        return res.redirect('/admin/users?error=Database migration required. Please run: node scripts/migrate.js');
+      }
+
+      // Get user details
+      db.get(
+        `SELECT u.id, u.username, u.role, u.first_name, u.last_name, u.email, u.phone, 
+                u.job_title, u.status, u.organization_id, o.name as organization_name
+         FROM users u 
+         LEFT JOIN organizations o ON u.organization_id = o.id
+         WHERE u.id = ?`,
+        [userId],
+        (err, user) => {
+          if (err) {
+            logger.error('Failed to fetch user details', { error: err.message, userId });
+            return res.redirect('/admin/users?error=Failed to load user details');
+          }
+          
+          if (!user) {
+            return res.redirect('/admin/users?error=User not found');
+          }
+          
+          // Get organizations for the dropdown
+          db.all(`SELECT id, name FROM organizations ORDER BY name`, (err, organizations) => {
+            if (err) {
+              logger.error('Failed to fetch organizations', { error: err.message });
+              return res.redirect('/admin/users?error=Failed to load organizations');
+            }
+            
+            res.render('admin_user_edit', { 
+              user: user, 
+              organizations: organizations,
+              error: error
+            });
+          });
+        }
+      );
+    });
+  }
+);
+
+// POST /admin/users/:id/update — update user
+router.post(
+  '/admin/users/:id/update',
+  ensureAuth,
+  ensureAdmin,
+  (req, res) => {
+    const userId = parseInt(req.params.id);
+    const { 
+      username, role, organization_id, 
+      first_name, last_name, email, phone, job_title, status,
+      password // Optional password update
+    } = req.body;
+    
+    // Check if database has been migrated first
+    db.all("PRAGMA table_info(users)", (err, columns) => {
+      if (err) {
+        logger.error('Failed to check users table structure', { error: err.message });
+        return res.redirect('/admin/users?error=Failed to check database structure');
+      }
+
+      const columnNames = columns.map(col => col.name);
+      const hasNewSchema = columnNames.includes('organization_id') && 
+                          columnNames.includes('first_name') && 
+                          columnNames.includes('created_at');
+
+      if (!hasNewSchema) {
+        return res.redirect('/admin/users?error=Database migration required. Please run: node scripts/migrate.js');
+      }
+
+      // Prepare update query based on whether password is being changed
+      let updateQuery;
+      let updateParams;
+      
+      if (password && password.trim()) {
+        // Update with new password
+        const hash = bcrypt.hashSync(password, 10);
+        updateQuery = `
+          UPDATE users 
+          SET username = ?, password = ?, role = ?, organization_id = ?, 
+              first_name = ?, last_name = ?, email = ?, phone = ?, 
+              job_title = ?, status = ?, updated_at = datetime('now')
+          WHERE id = ?`;
+        updateParams = [username, hash, role, organization_id, first_name, last_name, 
+                       email, phone, job_title, status, userId];
+      } else {
+        // Update without changing password
+        updateQuery = `
+          UPDATE users 
+          SET username = ?, role = ?, organization_id = ?, 
+              first_name = ?, last_name = ?, email = ?, phone = ?, 
+              job_title = ?, status = ?, updated_at = datetime('now')
+          WHERE id = ?`;
+        updateParams = [username, role, organization_id, first_name, last_name, 
+                       email, phone, job_title, status, userId];
+      }
+      
+      db.run(updateQuery, updateParams, function(err) {
+        if (err) {
+          logger.error('Failed to update user', { 
+            error: err.message, 
+            userId,
+            username,
+            role
+          });
+          
+          if (err.message.includes('UNIQUE constraint failed')) {
+            return res.redirect(`/admin/users/${userId}/edit?error=Username already exists`);
+          }
+          
+          return res.redirect(`/admin/users/${userId}/edit?error=Failed to update user`);
+        }
+        
+        if (this.changes === 0) {
+          return res.redirect('/admin/users?error=User not found');
+        }
+        
+        logger.info('User updated successfully', { userId, username, role, email });
+        res.redirect('/admin/users?success=User updated successfully');
+      });
+    });
+  }
+);
+
+// POST /admin/users/:id/delete — delete user
+router.post(
+  '/admin/users/:id/delete',
+  ensureAuth,
+  ensureAdmin,
+  (req, res) => {
+    const userId = parseInt(req.params.id);
+    
+    // Prevent user from deleting themselves
+    if (req.session.user.id === userId) {
+      return res.redirect('/admin/users?error=Cannot delete your own account');
+    }
+    
+    // Check if database has been migrated first
+    db.all("PRAGMA table_info(users)", (err, columns) => {
+      if (err) {
+        logger.error('Failed to check users table structure', { error: err.message });
+        return res.redirect('/admin/users?error=Failed to check database structure');
+      }
+
+      const columnNames = columns.map(col => col.name);
+      const hasNewSchema = columnNames.includes('organization_id') && 
+                          columnNames.includes('first_name') && 
+                          columnNames.includes('created_at');
+
+      if (!hasNewSchema) {
+        return res.redirect('/admin/users?error=Database migration required. Please run: node scripts/migrate.js');
+      }
+
+      // Get user details first to log the deletion
+      db.get(
+        `SELECT username, role FROM users WHERE id = ?`,
+        [userId],
+        (err, user) => {
+          if (err) {
+            logger.error('Failed to fetch user for deletion', { error: err.message, userId });
+            return res.redirect('/admin/users?error=Failed to find user');
+          }
+          
+          if (!user) {
+            return res.redirect('/admin/users?error=User not found');
+          }
+          
+          // Delete the user (hard delete)
+          db.run(
+            `DELETE FROM users WHERE id = ?`,
+            [userId],
+            function(err) {
+              if (err) {
+                logger.error('Failed to delete user', { error: err.message, userId });
+                return res.redirect('/admin/users?error=Failed to delete user');
+              }
+              
+              if (this.changes === 0) {
+                return res.redirect('/admin/users?error=User not found');
+              }
+              
+              logger.info('User deleted successfully', { 
+                userId, 
+                username: user.username, 
+                role: user.role 
+              });
+              res.redirect('/admin/users?success=User deleted successfully');
+            }
+          );
         }
       );
     });
