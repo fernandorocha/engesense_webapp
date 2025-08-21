@@ -69,14 +69,14 @@
               <td>${u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}</td>
               <td style="white-space: nowrap;">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <a href="/admin/users/${u.id}/edit" class="md-button md-button-outlined" style="color: var(--md-primary); border-color: var(--md-primary); font-size: 0.8em; padding: 4px 8px; text-decoration: none; display: inline-block;">
+                  <a href="/admin/users/${u.id}/edit" class="md-button md-button-outlined" style="color: var(--md-primary); border-color: var(--md-primary); font-size: 0.8em; padding: 6px 12px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; min-width: 60px;">
                     Edit
                   </a>
                   ${currentUser && u.username !== currentUser.username ? `
                     <form method="POST" action="/admin/users/${u.id}/delete" style="display: inline;" 
                           onsubmit="return confirm('Are you sure you want to delete user &quot;${u.username}&quot;? This action cannot be undone.')">
                       <input type="hidden" name="_method" value="DELETE">
-                      <button type="submit" class="md-button md-button-outlined" style="color: var(--md-error); border-color: var(--md-error); font-size: 0.8em; padding: 4px 8px;">
+                      <button type="submit" class="md-button md-button-outlined" style="color: var(--md-error); border-color: var(--md-error); font-size: 0.8em; padding: 6px 12px; display: inline-flex; align-items: center; justify-content: center; min-width: 60px;">
                         Delete
                       </button>
                     </form>
@@ -91,7 +91,13 @@
 
     ${!(typeof needsMigration !== 'undefined' && needsMigration) ? `
     <div class="md-card md-elevation-1" style="padding: var(--md-spacing-xl);">
-      <h3 class="section-title">Create New User</h3>
+      <div style="display: flex; align-items: center; gap: var(--md-spacing-md); margin-bottom: var(--md-spacing-xl); padding-bottom: var(--md-spacing-md); border-bottom: 1px solid var(--md-outline-variant);">
+        <span style="background: var(--md-primary); color: var(--md-on-primary); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2em;">👤</span>
+        <div>
+          <h3 class="section-title" style="margin: 0; font-size: var(--md-font-size-h6);">Create New User</h3>
+          <p style="margin: 0; color: var(--md-on-surface-variant); font-size: var(--md-font-size-body2);">Add a new user to the system with full access control</p>
+        </div>
+      </div>
       <form method="POST" action="/admin/users" class="admin-form">
         <div class="form-field">
           <label class="md-input-label" for="username">Username *</label>
@@ -186,7 +192,7 @@
           </select>
         </div>
         
-        <button type="submit" class="md-button md-button-filled submit-button">
+        <button type="submit" class="md-button md-button-filled submit-button" style="background: var(--md-primary); color: var(--md-on-primary); padding: var(--md-spacing-md) var(--md-spacing-xl); font-weight: var(--md-font-weight-medium); display: flex; align-items: center; gap: var(--md-spacing-sm);">
           <span class="md-icon md-icon-sm">👤</span>
           Create User
         </button>
