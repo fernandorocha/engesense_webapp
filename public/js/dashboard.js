@@ -2,6 +2,25 @@
  * Main Dashboard Controller - orchestrates all dashboard modules
  */
 class Dashboard {
+  // UI handler for measurements dropdown (checkbox change)
+  handleMeasurementsUIChange() {
+    const measurementsDropdown = document.getElementById('measurementsDropdown');
+    if (measurementsDropdown) {
+      this.ui.selectedMeasurements = this.ui.getSelectedItems(measurementsDropdown);
+      this.ui.updateDropdownText(measurementsDropdown, this.ui.allMeasurements, this.ui.selectedMeasurements, this.ui.measurementDisplayFormatter);
+      this.ui.updateCsvFields();
+    }
+  }
+
+  // UI handler for buckets dropdown (checkbox change)
+  handleBucketsUIChange() {
+    const bucketsDropdown = document.getElementById('bucketsDropdown');
+    if (bucketsDropdown) {
+      this.ui.selectedBuckets = this.ui.getSelectedItems(bucketsDropdown);
+      this.ui.updateDropdownText(bucketsDropdown, this.ui.allBuckets, this.ui.selectedBuckets);
+      this.ui.updateCsvFields();
+    }
+  }
   constructor() {
     this.ui = new DashboardUI();
     this.data = new DashboardData();
@@ -185,15 +204,13 @@ class Dashboard {
       this.clearMeasurements();
       return;
     }
-    
+
     try {
       const measurements = await this.data.loadMeasurements(this.ui.selectedBuckets);
       this.ui.allMeasurements = measurements;
-      
-      // Filter selectedMeasurements to only include measurements that still exist
-      this.ui.selectedMeasurements = this.ui.selectedMeasurements.filter(m => 
-        this.ui.allMeasurements.includes(m)
-      );
+
+      // Only keep selected measurements that still exist
+      this.ui.selectedMeasurements = this.ui.selectedMeasurements.filter(m => measurements.includes(m));
 
       const measurementsDropdown = document.getElementById('measurementsDropdown');
       if (measurementsDropdown) {
@@ -203,54 +220,14 @@ class Dashboard {
           this.ui.updateDropdownText(measurementsDropdown, [], [], this.ui.measurementDisplayFormatter);
           return;
         }
-
-        // Auto-select first measurement only if no valid selections remain
-        if (this.ui.selectedMeasurements.length === 0 && measurements.length > 0) {
-          this.ui.selectedMeasurements = [measurements[0]];
-        }
-
+        // Do NOT auto-select any measurement if none is selected
         this.ui.populateDropdown(measurementsDropdown, measurements, this.ui.selectedMeasurements, this.ui.measurementDisplayFormatter);
         this.ui.updateDropdownText(measurementsDropdown, measurements, this.ui.selectedMeasurements, this.ui.measurementDisplayFormatter);
         this.ui.updateCsvFields();
-        
-        // Load data if measurements are selected
-        if (this.ui.selectedMeasurements.length > 0) {
-          await this.loadAndRender();
-        }
       }
     } catch (error) {
       console.error('Failed to load measurements:', error);
       this.clearMeasurements();
-    }
-  }
-
-  clearMeasurements() {
-    this.ui.allMeasurements = [];
-    this.ui.selectedMeasurements = [];
-    
-    const measurementsDropdown = document.getElementById('measurementsDropdown');
-    if (measurementsDropdown) {
-      this.ui.populateDropdown(measurementsDropdown, [], []);
-      this.ui.updateDropdownText(measurementsDropdown, [], [], this.ui.measurementDisplayFormatter);
-    }
-  }
-
-  // UI-only handlers (called during dropdown interaction)
-  handleBucketsUIChange() {
-    const bucketsDropdown = document.getElementById('bucketsDropdown');
-    if (bucketsDropdown) {
-      this.ui.selectedBuckets = this.ui.getSelectedItems(bucketsDropdown);
-      this.ui.updateDropdownText(bucketsDropdown, this.ui.allBuckets, this.ui.selectedBuckets);
-      this.ui.updateCsvFields();
-    }
-  }
-
-  handleMeasurementsUIChange() {
-    const measurementsDropdown = document.getElementById('measurementsDropdown');
-    if (measurementsDropdown) {
-      this.ui.selectedMeasurements = this.ui.getSelectedItems(measurementsDropdown);
-      this.ui.updateDropdownText(measurementsDropdown, this.ui.allMeasurements, this.ui.selectedMeasurements, this.ui.measurementDisplayFormatter);
-      this.ui.updateCsvFields();
     }
   }
 
