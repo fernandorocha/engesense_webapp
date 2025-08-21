@@ -1,0 +1,90 @@
+<% 
+  // Set page-specific variables for the layout
+  const pageTitle = 'Edit Organization';
+  const currentPage = 'organizations';
+  
+  // Main content for this page
+  const body = `
+    <header style="margin-bottom: var(--md-spacing-xl);">
+      <h2 class="md-headline-3" style="color: var(--md-primary); margin: 0;">Edit Organization</h2>
+      <p style="color: var(--md-on-surface-variant); margin-top: var(--md-spacing-sm);">
+        Update organization details and InfluxDB configuration
+      </p>
+    </header>
+
+    ${error ? `
+      <div class="error-message">
+        <strong>Error:</strong> ${error}
+      </div>
+    ` : ''}
+
+    <div class="md-card md-elevation-1" style="padding: var(--md-spacing-xl);">
+      <form method="POST" action="/admin/organizations/${organization.id}/update" class="admin-form">
+        <div class="form-field">
+          <label class="md-input-label" for="name">Organization Name *</label>
+          <input 
+            id="name"
+            name="name" 
+            class="md-input" 
+            placeholder="Enter organization name" 
+            value="${organization.name || ''}"
+            required 
+          />
+        </div>
+        
+        <div class="form-field">
+          <label class="md-input-label" for="description">Description</label>
+          <input 
+            id="description"
+            name="description" 
+            class="md-input" 
+            placeholder="Enter organization description"
+            value="${organization.description || ''}"
+          />
+        </div>
+        
+        <div class="form-field">
+          <label class="md-input-label" for="influx_token">InfluxDB Token *</label>
+          <input 
+            id="influx_token"
+            name="influx_token" 
+            class="md-input" 
+            placeholder="Enter InfluxDB access token"
+            value="${organization.influx_token || ''}"
+            required
+            style="font-family: monospace; font-size: 0.9em;"
+          />
+        </div>
+        
+        <div style="display: flex; gap: var(--md-spacing-md); flex-wrap: wrap; margin-top: var(--md-spacing-lg);">
+          <button type="submit" class="md-button md-button-filled">
+            <span class="md-icon md-icon-sm">💾</span>
+            Update Organization
+          </button>
+          
+          <a href="/admin/organizations" class="md-button md-button-outlined" style="text-decoration: none; display: inline-flex; align-items: center; gap: var(--md-spacing-xs);">
+            <span class="md-icon md-icon-sm">↩️</span>
+            Cancel
+          </a>
+        </div>
+      </form>
+      
+      <div style="margin-top: var(--md-spacing-lg); padding: var(--md-spacing-md); background-color: rgba(25, 118, 210, 0.1); border-radius: var(--md-radius-sm); border-left: 4px solid var(--md-primary);">
+        <p style="margin: 0; font-size: var(--md-font-size-body2); color: var(--md-on-surface);">
+          <strong>ℹ️ Note:</strong> All organizations use the same InfluxDB server URL (${process.env.INFLUX_URL || 'configured in environment'}). 
+          Each organization requires its own access token for data isolation.
+        </p>
+      </div>
+      
+      ${organization.created_at ? `
+        <div style="margin-top: var(--md-spacing-lg); padding-top: var(--md-spacing-md); border-top: 1px solid var(--md-outline-variant); color: var(--md-on-surface-variant); font-size: var(--md-font-size-body2);">
+          <strong>Organization Details:</strong><br>
+          Created: ${new Date(organization.created_at).toLocaleString()}<br>
+          ${organization.updated_at ? `Last Updated: ${new Date(organization.updated_at).toLocaleString()}` : ''}
+        </div>
+      ` : ''}
+    </div>
+  `;
+%>
+
+<%- include('./partials/admin_layout', { pageTitle, currentPage, body }) %>

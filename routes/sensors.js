@@ -10,17 +10,18 @@ const router = express.Router();
 // GET /api/buckets - Get available buckets for user's organization
 router.get('/api/buckets', ensureAuth, async (req, res) => {
   try {
-    const organization = req.session.user.organization;
+    const organizationId = req.session.user.organization_id;
     
-    if (!organization) {
+    if (!organizationId) {
       return res.status(400).json({ error: 'User organization not found' });
     }
     
-    const buckets = await getBuckets(organization);
+    const buckets = await getBuckets(organizationId);
     
     logger.info('Buckets fetched successfully', { 
       count: buckets.length,
-      organization,
+      organizationId,
+      organization: req.session.user.organization,
       user: req.session.user.username
     });
     
@@ -28,6 +29,7 @@ router.get('/api/buckets', ensureAuth, async (req, res) => {
   } catch (err) {
     logger.error('Failed to fetch buckets', { 
       error: err.message,
+      organizationId: req.session.user.organization_id,
       organization: req.session.user.organization,
       user: req.session.user.username
     });
@@ -40,9 +42,9 @@ router.get('/api/measurements', ensureAuth, async (req, res) => {
   try {
     const { buckets } = req.query;
     const bucketList = buckets ? buckets.split(',').map(b => b.trim()).filter(b => b) : [];
-    const organization = req.session.user.organization;
+    const organizationId = req.session.user.organization_id;
     
-    if (!organization) {
+    if (!organizationId) {
       return res.status(400).json({ error: 'User organization not found' });
     }
     
@@ -50,12 +52,13 @@ router.get('/api/measurements', ensureAuth, async (req, res) => {
       return res.json({ measurements: [] });
     }
     
-    const measurements = await getMeasurements(organization, bucketList);
+    const measurements = await getMeasurements(organizationId, bucketList);
     
     logger.info('Measurements fetched successfully', { 
       count: measurements.length,
       buckets: bucketList,
-      organization,
+      organizationId,
+      organization: req.session.user.organization,
       user: req.session.user.username
     });
     
@@ -64,6 +67,7 @@ router.get('/api/measurements', ensureAuth, async (req, res) => {
     logger.error('Failed to fetch measurements', { 
       error: err.message,
       buckets: req.query.buckets,
+      organizationId: req.session.user.organization_id,
       organization: req.session.user.organization,
       user: req.session.user.username
     });
@@ -75,9 +79,9 @@ router.get('/api/sensors', ensureAuth, validateSensorQuery, async (req, res) => 
   const { range, start, stop, buckets, measurements } = req.query;
 
   try {
-    const organization = req.session.user.organization;
+    const organizationId = req.session.user.organization_id;
     
-    if (!organization) {
+    if (!organizationId) {
       return res.status(400).json({ error: 'User organization not found' });
     }
     
@@ -90,7 +94,7 @@ router.get('/api/sensors', ensureAuth, validateSensorQuery, async (req, res) => 
     }
     
     const readings = await querySensorReadings({
-      organization,
+      organizationId,
       range,
       start,
       stop,
@@ -105,7 +109,8 @@ router.get('/api/sensors', ensureAuth, validateSensorQuery, async (req, res) => 
       stop,
       buckets: bucketList,
       measurements: measurementList,
-      organization,
+      organizationId,
+      organization: req.session.user.organization,
       user: req.session.user.username
     });
     
@@ -118,6 +123,7 @@ router.get('/api/sensors', ensureAuth, validateSensorQuery, async (req, res) => 
       stop,
       buckets,
       measurements,
+      organizationId: req.session.user.organization_id,
       organization: req.session.user.organization,
       user: req.session.user.username
     });

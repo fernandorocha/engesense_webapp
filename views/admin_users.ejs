@@ -1,209 +1,106 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Engesense - User Management</title>
+<% 
+  // Set page-specific variables for the layout
+  const pageTitle = 'User Management';
+  const currentPage = 'users';
   
-  <!-- Google Fonts - Roboto -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-  
-  <!-- Material Design System -->
-  <link rel="stylesheet" href="/css/design-system.css">
-  
-  <style>
-    /* Admin-specific styles */
-    body {
-      padding: var(--md-spacing-lg);
-      min-height: 100vh;
-    }
-    
-    .admin-container {
-      max-width: 1000px;
-      margin: 0 auto;
-    }
-    
-    .admin-header {
-      margin-bottom: var(--md-spacing-xl);
-    }
-    
-    .admin-title {
-      color: var(--md-primary);
-      margin-bottom: var(--md-spacing-md);
-    }
-    
-    .back-link {
-      color: var(--md-primary);
-      text-decoration: none;
-      font-size: var(--md-font-size-body2);
-      transition: color var(--md-transition-fast);
-    }
-    
-    .back-link:hover {
-      color: var(--md-primary-dark);
-      text-decoration: underline;
-    }
-    
-    .error-message {
-      background-color: rgba(176, 0, 32, 0.1);
-      color: var(--md-error);
-      padding: var(--md-spacing-md);
-      border-radius: var(--md-radius-sm);
-      border-left: 4px solid var(--md-error);
-      margin-bottom: var(--md-spacing-lg);
-      font-size: var(--md-font-size-body2);
-    }
-    
-    .section-title {
-      color: var(--md-on-surface);
-      margin-bottom: var(--md-spacing-lg);
-      font-size: var(--md-font-size-h6);
-      font-weight: var(--md-font-weight-medium);
-    }
-    
-    .users-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: var(--md-spacing-2xl);
-      font-size: var(--md-font-size-body2);
-    }
-    
-    .users-table th {
-      background-color: var(--md-surface-variant);
-      color: var(--md-primary);
-      padding: var(--md-spacing-md);
-      text-align: left;
-      font-weight: var(--md-font-weight-medium);
-      border-bottom: 2px solid var(--md-outline);
-    }
-    
-    .users-table td {
-      padding: var(--md-spacing-md);
-      border-bottom: 1px solid var(--md-outline-variant);
-    }
-    
-    .users-table tr:hover {
-      background-color: var(--md-surface-variant);
-    }
-    
-    .create-user-form {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--md-spacing-md);
-      align-items: end;
-      padding: var(--md-spacing-lg);
-      background-color: var(--md-surface-variant);
-      border-radius: var(--md-radius-md);
-    }
-    
-    .form-field {
-      min-width: 150px;
-      flex: 1;
-    }
-    
-    .form-select {
-      padding: var(--md-spacing-md);
-      border: 1px solid var(--md-outline);
-      border-radius: var(--md-radius-sm);
-      background-color: var(--md-surface);
-      color: var(--md-on-surface);
-      font-family: var(--md-font-family);
-      font-size: var(--md-font-size-body1);
-      transition: all var(--md-transition-fast);
-    }
-    
-    .form-select:focus {
-      outline: none;
-      border-color: var(--md-primary);
-      box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.12);
-    }
-    
-    .create-button {
-      white-space: nowrap;
-    }
-    
-    /* Responsive Design */
-    @media (max-width: 768px) {
-      body {
-        padding: var(--md-spacing-md);
-      }
-      
-      .create-user-form {
-        flex-direction: column;
-        align-items: stretch;
-      }
-      
-      .form-field {
-        min-width: unset;
-      }
-      
-      .users-table {
-        font-size: var(--md-font-size-caption);
-      }
-      
-      .users-table th,
-      .users-table td {
-        padding: var(--md-spacing-sm);
-      }
-    }
-    
-    @media (max-width: 480px) {
-      .users-table {
-        display: block;
-        overflow-x: auto;
-        white-space: nowrap;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="admin-container">
-    <header class="admin-header">
-      <h1 class="md-headline-3 admin-title">User Management</h1>
-      <p><a href="/dashboard" class="back-link">← Back to Dashboard</a></p>
+  // Main content for this page
+  const body = `
+    <header style="margin-bottom: var(--md-spacing-xl);">
+      <h2 class="md-headline-3" style="color: var(--md-primary); margin: 0;">User Management</h2>
+      <p style="color: var(--md-on-surface-variant); margin-top: var(--md-spacing-sm);">
+        Manage user accounts and their access permissions
+      </p>
     </header>
 
-    <% if (error) { %>
+    ${error ? `
       <div class="error-message">
-        <strong>Error:</strong> <%= error %>
+        ${typeof needsMigration !== 'undefined' && needsMigration ? `
+          <strong>⚠️ Database Migration Required</strong><br>
+          Your database needs to be upgraded to use the new user management features.<br><br>
+          <strong>Run this command to upgrade:</strong><br>
+          <code style="background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-family: monospace;">node scripts/migrate.js</code><br><br>
+          This will safely add new fields while preserving all existing user data.
+        ` : `
+          <strong>Error:</strong> ${error}
+        `}
       </div>
-    <% } %>
+    ` : ''}
+
+    ${success ? `
+      <div class="success-message">
+        <strong>Success:</strong> ${success}
+      </div>
+    ` : ''}
 
     <div class="md-card md-elevation-1" style="padding: var(--md-spacing-xl); margin-bottom: var(--md-spacing-xl);">
-      <h2 class="section-title">Existing Users</h2>
-      <table class="users-table">
+      <h3 class="section-title">Existing Users</h3>
+      <table class="data-table">
         <thead>
           <tr>
             <th>User ID</th>
             <th>Username</th>
+            <th>Name</th>
+            <th>Email</th>
             <th>Role</th>
             <th>Organization</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          <% users.forEach(u => { %>
+          ${users.map(u => `
             <tr>
-              <td><%= u.id %></td>
-              <td><%= u.username %></td>
+              <td>${u.id}</td>
+              <td><strong>${u.username}</strong></td>
+              <td>${[u.first_name, u.last_name].filter(n => n).join(' ') || '-'}</td>
+              <td>${u.email || '-'}</td>
               <td>
-                <span class="<%= u.role === 'admin' ? 'md-text-primary' : '' %>" style="font-weight: <%= u.role === 'admin' ? 'var(--md-font-weight-medium)' : 'var(--md-font-weight-regular)' %>;">
-                  <%= u.role %>
+                <span class="${u.role === 'admin' ? 'md-text-primary' : ''}" style="font-weight: ${u.role === 'admin' ? 'var(--md-font-weight-medium)' : 'var(--md-font-weight-regular)'};">
+                  ${u.role}
                 </span>
               </td>
-              <td><%= u.organization %></td>
+              <td>${u.organization_name || '-'}</td>
+              <td>
+                <span class="${u.status === 'active' ? 'md-text-success' : u.status === 'suspended' ? 'md-text-error' : ''}" style="font-weight: var(--md-font-weight-medium);">
+                  ${u.status || 'active'}
+                </span>
+              </td>
+              <td>${u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}</td>
+              <td style="white-space: nowrap;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <a href="/admin/users/${u.id}/edit" class="md-button md-button-outlined" style="color: var(--md-primary); border-color: var(--md-primary); font-size: 0.8em; padding: 6px 12px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; min-width: 60px;">
+                    Edit
+                  </a>
+                  ${currentUser && u.username !== currentUser.username ? `
+                    <form method="POST" action="/admin/users/${u.id}/delete" style="display: inline;" 
+                          onsubmit="return confirm('Are you sure you want to delete user &quot;${u.username}&quot;? This action cannot be undone.')">
+                      <input type="hidden" name="_method" value="DELETE">
+                      <button type="submit" class="md-button md-button-outlined" style="color: var(--md-error); border-color: var(--md-error); font-size: 0.8em; padding: 6px 12px; display: inline-flex; align-items: center; justify-content: center; min-width: 60px;">
+                        Delete
+                      </button>
+                    </form>
+                  ` : '<span style="color: var(--md-on-surface-variant); font-size: 0.8em;">Current User</span>'}
+                </div>
+              </td>
             </tr>
-          <% }) %>
+          `).join('')}
         </tbody>
       </table>
     </div>
 
+    ${!(typeof needsMigration !== 'undefined' && needsMigration) ? `
     <div class="md-card md-elevation-1" style="padding: var(--md-spacing-xl);">
-      <h2 class="section-title">Create New User</h2>
-      <form method="POST" action="/admin/users" class="create-user-form">
+      <div style="display: flex; align-items: center; gap: var(--md-spacing-md); margin-bottom: var(--md-spacing-xl); padding-bottom: var(--md-spacing-md); border-bottom: 1px solid var(--md-outline-variant);">
+        <span style="background: var(--md-primary); color: var(--md-on-primary); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2em;">👤</span>
+        <div>
+          <h3 class="section-title" style="margin: 0; font-size: var(--md-font-size-h6);">Create New User</h3>
+          <p style="margin: 0; color: var(--md-on-surface-variant); font-size: var(--md-font-size-body2);">Add a new user to the system with full access control</p>
+        </div>
+      </div>
+      <form method="POST" action="/admin/users" class="admin-form">
         <div class="form-field">
-          <label class="md-input-label" for="username">Username</label>
+          <label class="md-input-label" for="username">Username *</label>
           <input 
             id="username"
             name="username" 
@@ -214,7 +111,7 @@
         </div>
         
         <div class="form-field">
-          <label class="md-input-label" for="password">Password</label>
+          <label class="md-input-label" for="password">Password *</label>
           <input 
             id="password"
             name="password" 
@@ -226,33 +123,83 @@
         </div>
         
         <div class="form-field">
-          <label class="md-input-label" for="role">Role</label>
-          <select id="role" name="role" class="form-select">
+          <label class="md-input-label" for="first_name">First Name</label>
+          <input 
+            id="first_name"
+            name="first_name" 
+            class="md-input" 
+            placeholder="Enter first name"
+          />
+        </div>
+        
+        <div class="form-field">
+          <label class="md-input-label" for="last_name">Last Name</label>
+          <input 
+            id="last_name"
+            name="last_name" 
+            class="md-input" 
+            placeholder="Enter last name"
+          />
+        </div>
+        
+        <div class="form-field">
+          <label class="md-input-label" for="email">Email</label>
+          <input 
+            id="email"
+            name="email" 
+            type="email"
+            class="md-input" 
+            placeholder="Enter email address"
+          />
+        </div>
+        
+        <div class="form-field">
+          <label class="md-input-label" for="phone">Phone</label>
+          <input 
+            id="phone"
+            name="phone" 
+            type="tel"
+            class="md-input" 
+            placeholder="Enter phone number"
+          />
+        </div>
+        
+        <div class="form-field">
+          <label class="md-input-label" for="job_title">Job Title</label>
+          <input 
+            id="job_title"
+            name="job_title" 
+            class="md-input" 
+            placeholder="Enter job title"
+          />
+        </div>
+        
+        <div class="form-field">
+          <label class="md-input-label" for="role">Role *</label>
+          <select id="role" name="role" class="form-select" required>
             <option value="client">Client</option>
             <option value="admin">Admin</option>
           </select>
         </div>
         
         <div class="form-field">
-          <label class="md-input-label" for="organization">Organization</label>
-          <input 
-            id="organization"
-            name="organization" 
-            class="md-input"
-            placeholder="Enter organization" 
-            required 
-          />
+          <label class="md-input-label" for="organization_id">Organization *</label>
+          <select id="organization_id" name="organization_id" class="form-select" required>
+            <option value="">Select Organization</option>
+            ${organizations.map(org => `
+              <option value="${org.id}">${org.name}</option>
+            `).join('')}
+          </select>
         </div>
         
-        <button type="submit" class="md-button md-button-filled create-button">
+        <button type="submit" class="md-button md-button-filled submit-button" style="background: var(--md-primary); color: var(--md-on-primary); padding: var(--md-spacing-md) var(--md-spacing-xl); font-weight: var(--md-font-weight-medium); display: flex; align-items: center; gap: var(--md-spacing-sm);">
           <span class="md-icon md-icon-sm">👤</span>
           Create User
         </button>
       </form>
     </div>
-  </div>
+    ` : ''}
+  `;
+%>
 
-  <!-- Theme System -->
-  <script src="/css/theme-system.js"></script>
-</body>
-</html>
+<%- include('./partials/admin_layout', { pageTitle, currentPage, body }) %>
