@@ -68,18 +68,20 @@
               </td>
               <td>${u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}</td>
               <td style="white-space: nowrap;">
-                <a href="/admin/users/${u.id}/edit" class="md-button md-button-outlined" style="color: var(--md-primary); border-color: var(--md-primary); font-size: 0.8em; padding: 4px 8px; margin-right: 8px; text-decoration: none; display: inline-block;">
-                  Edit
-                </a>
-                ${currentUser && u.username !== currentUser.username ? `
-                  <form method="POST" action="/admin/users/${u.id}/delete" style="display: inline;" 
-                        onsubmit="return confirm('Are you sure you want to delete user &quot;${u.username}&quot;? This action cannot be undone.')">
-                    <input type="hidden" name="_method" value="DELETE">
-                    <button type="submit" class="md-button md-button-outlined" style="color: var(--md-error); border-color: var(--md-error); font-size: 0.8em; padding: 4px 8px;">
-                      Delete
-                    </button>
-                  </form>
-                ` : '<span style="color: var(--md-on-surface-variant); font-size: 0.8em; margin-left: 8px;">Current User</span>'}
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <a href="/admin/users/${u.id}/edit" class="md-button md-button-outlined" style="color: var(--md-primary); border-color: var(--md-primary); font-size: 0.8em; padding: 4px 8px; text-decoration: none; display: inline-block;">
+                    Edit
+                  </a>
+                  ${currentUser && u.username !== currentUser.username ? `
+                    <form method="POST" action="/admin/users/${u.id}/delete" style="display: inline;" 
+                          onsubmit="return confirm('Are you sure you want to delete user &quot;${u.username}&quot;? This action cannot be undone.')">
+                      <input type="hidden" name="_method" value="DELETE">
+                      <button type="submit" class="md-button md-button-outlined" style="color: var(--md-error); border-color: var(--md-error); font-size: 0.8em; padding: 4px 8px;">
+                        Delete
+                      </button>
+                    </form>
+                  ` : '<span style="color: var(--md-on-surface-variant); font-size: 0.8em;">Current User</span>'}
+                </div>
               </td>
             </tr>
           `).join('')}
