@@ -52,8 +52,7 @@ class DashboardData {
       measurements = [],
       range = '-1h',
       start,
-      stop,
-      limit = 5000
+      stop
     } = options;
 
     if (!measurements || measurements.length === 0) {
@@ -72,7 +71,6 @@ class DashboardData {
 
     // Build URL parameters
     const params = new URLSearchParams();
-    params.append('limit', limit.toString());
     
     if (bucketsArr.length > 0) {
       params.append('buckets', bucketsArr.join(','));

@@ -4,17 +4,7 @@
  * Validates sensor query parameters
  */
 function validateSensorQuery(req, res, next) {
-  const { range, start, stop, limit } = req.query;
-  
-  // Validate limit parameter
-  if (limit !== undefined) {
-    const limitNum = parseInt(limit, 10);
-    if (isNaN(limitNum) || limitNum < 1 || limitNum > 10000) {
-      return res.status(400).json({ 
-        error: 'Invalid limit parameter. Must be between 1 and 10000.' 
-      });
-    }
-  }
+  const { range, start, stop } = req.query;
   
   // Validate time range parameters
   if (start && stop) {

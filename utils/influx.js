@@ -5,7 +5,8 @@ const logger = require('./logger');
 
 const client = new InfluxDB({
   url:   process.env.INFLUX_URL,
-  token: process.env.INFLUX_TOKEN
+  token: process.env.INFLUX_TOKEN,
+  timeout: 0 // Remove any timeout limits for queries
 });
 
 /**
@@ -53,7 +54,7 @@ async function getBuckets(organization) {
           });
           resolve(buckets);
         }
-      });
+      }, { /* No query options - remove any default limits */ });
     });
   } catch (err) {
     logger.error('InfluxDB connection failed', { error: err.message });
@@ -111,7 +112,7 @@ async function getMeasurements(organization, buckets) {
             });
             resolve();
           }
-        });
+        }, { /* No query options - remove any default limits */ });
       });
     }
     return Array.from(measurementsSet);
@@ -130,12 +131,11 @@ async function getMeasurements(organization, buckets) {
  * @param {string} [params.range] - Relative time range (e.g., '-1h', '-30m')
  * @param {string} [params.start] - Start time (ISO 8601)
  * @param {string} [params.stop] - Stop time (ISO 8601)
- * @param {number} [params.limit=1000] - Maximum number of readings to return
  * @param {Array<string>} params.buckets - Array of bucket names to query (required)
  * @param {Array<string>} [params.measurements] - Array of measurement names to query
  * @returns {Promise<Array>} Array of sensor readings with measurement info
  */
-async function querySensorReadings({ organization, range, start, stop, limit = 1000, buckets, measurements }) {
+async function querySensorReadings({ organization, range, start, stop, buckets, measurements }) {
   if (!organization) {
     throw new Error('Organization is required for InfluxDB queries');
   }
@@ -182,7 +182,7 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
     rangeClause = `|> range(start: ${range || '-1h'})`;
   }
 
-  const readings = [];
+  let readings = [];
   
   try {
     // Create promises for parallel bucket processing
@@ -203,15 +203,11 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
         ? `r["_measurement"] == "${uniqueMeasurements[0]}"` 
         : uniqueMeasurements.map(m => `r["_measurement"] == "${m}"`).join(' or ');
 
-      // Adjust limit per bucket for better distribution
-      const bucketLimit = Math.ceil(limit / buckets.length);
-
       const flux = `
         from(bucket: "${bucket}")
           ${rangeClause}
           |> filter(fn: (r) => (${measurementFilter}) and r._field == "value")
           |> sort(columns: ["_time"], desc: false)
-          |> limit(n: ${bucketLimit})
       `;
       
       logger.debug('Executing Flux query', { 
@@ -224,18 +220,6 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
 
       return new Promise((resolve, reject) => {
         const bucketReadings = [];
-        let timeoutId;
-        
-        // Set a timeout for individual bucket queries (10 seconds)
-        const queryTimeout = 10000;
-        timeoutId = setTimeout(() => {
-          logger.warn('Bucket query timeout, resolving with partial data', { 
-            bucket, 
-            measurements: uniqueMeasurements,
-            timeoutMs: queryTimeout 
-          });
-          resolve(bucketReadings); // Return whatever data we have so far
-        }, queryTimeout);
         
         queryApi.queryRows(flux, {
           next(row, tableMeta) {
@@ -252,7 +236,6 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
             }
           },
           error(err) {
-            clearTimeout(timeoutId);
             logger.error('InfluxDB query error', { 
               error: err.message,
               query: flux.trim(),
@@ -260,16 +243,9 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
               measurements: uniqueMeasurements,
               organization
             });
-            // For timeouts, resolve with partial data instead of rejecting
-            if (err.message.includes('timeout') || err.message.includes('Request timed out')) {
-              logger.warn('Query timeout, returning partial data', { bucket, pointsReturned: bucketReadings.length });
-              resolve(bucketReadings);
-            } else {
-              reject(err);
-            }
+            reject(err);
           },
           complete() {
-            clearTimeout(timeoutId);
             logger.debug('Bucket query completed', { 
               bucket,
               measurements: uniqueMeasurements,
@@ -278,7 +254,7 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
             });
             resolve(bucketReadings);
           }
-        });
+        }, { /* No query options - remove any default limits */ });
       });
     });
 
@@ -288,7 +264,8 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
     // Process results and handle any rejections gracefully
     bucketResults.forEach((result, index) => {
       if (result.status === 'fulfilled') {
-        readings.push(...result.value);
+        // Use concat instead of spread operator for large arrays to avoid call stack overflow
+        readings = readings.concat(result.value);
       } else {
         logger.warn('Bucket query failed, skipping bucket', { 
           bucket: buckets[index], 
@@ -301,20 +278,29 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
     throw err;
   }
 
-  // Sort combined results by timestamp and apply overall limit
-  readings.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-  const limitedReadings = readings.slice(0, limit);
+  // Sort combined results by timestamp efficiently for large datasets
+  // Since individual bucket queries are already sorted, we only need to merge-sort for multiple buckets
+  if (buckets.length === 1) {
+    // Single bucket: data is already sorted from InfluxDB
+    logger.debug('Single bucket query, data already sorted', { pointsReturned: readings.length });
+  } else {
+    // Multiple buckets: use efficient merge approach
+    logger.debug('Multiple bucket query, merging sorted results', { 
+      pointsReturned: readings.length, 
+      bucketCount: buckets.length 
+    });
+    readings.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  }
   
   logger.info('InfluxDB query completed', { 
-    pointsReturned: limitedReadings.length,
+    pointsReturned: readings.length,
     buckets: buckets,
     bucketMeasurements: bucketMeasurements,
     originalMeasurements: queryMeasurements,
-    organization,
-    limit
+    organization
   });
   
-  return limitedReadings;
+  return readings;
 }
 
 module.exports = { querySensorReadings, getBuckets, getMeasurements };

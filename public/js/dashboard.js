@@ -309,8 +309,7 @@ class Dashboard {
         measurements: this.ui.selectedMeasurements,
         range: start && stop ? undefined : this.currentRange,
         start: start,
-        stop: stop,
-        limit: 5000
+        stop: stop
       };
 
       const result = await this.data.loadSensorData(options);
