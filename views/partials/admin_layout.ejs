@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Engesense - <%= pageTitle || 'Administration' %></title>
+  
+  <!-- Google Fonts - Roboto -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- Material Design System -->
+  <link rel="stylesheet" href="/css/design-system.css">
+  
+  <style>
+    /* Admin Layout Styles */
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background-color: var(--md-surface);
+    }
+    
+    .admin-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+    
+    .admin-sidebar {
+      width: 280px;
+      background-color: var(--md-surface-variant);
+      border-right: 1px solid var(--md-outline-variant);
+      padding: var(--md-spacing-lg);
+      flex-shrink: 0;
+    }
+    
+    .admin-content {
+      flex: 1;
+      padding: var(--md-spacing-lg);
+      overflow-x: auto;
+    }
+    
+    .admin-header {
+      margin-bottom: var(--md-spacing-xl);
+      padding-bottom: var(--md-spacing-lg);
+      border-bottom: 1px solid var(--md-outline-variant);
+    }
+    
+    .admin-title {
+      color: var(--md-primary);
+      margin: 0 0 var(--md-spacing-sm) 0;
+    }
+    
+    .back-link {
+      color: var(--md-primary);
+      text-decoration: none;
+      font-size: var(--md-font-size-body2);
+      transition: color var(--md-transition-fast);
+      display: inline-flex;
+      align-items: center;
+      gap: var(--md-spacing-xs);
+    }
+    
+    .back-link:hover {
+      color: var(--md-primary-dark);
+      text-decoration: underline;
+    }
+    
+    /* Sidebar Navigation */
+    .nav-menu {
+      margin-top: var(--md-spacing-xl);
+    }
+    
+    .nav-item {
+      margin-bottom: var(--md-spacing-sm);
+    }
+    
+    .nav-link {
+      display: flex;
+      align-items: center;
+      padding: var(--md-spacing-md);
+      border-radius: var(--md-radius-sm);
+      text-decoration: none;
+      color: var(--md-on-surface);
+      transition: all var(--md-transition-fast);
+      font-weight: var(--md-font-weight-medium);
+      gap: var(--md-spacing-md);
+    }
+    
+    .nav-link:hover {
+      background-color: var(--md-surface);
+      color: var(--md-primary);
+    }
+    
+    .nav-link.active {
+      background-color: var(--md-primary);
+      color: var(--md-on-primary);
+    }
+    
+    .nav-icon {
+      font-size: 1.2em;
+      width: 24px;
+      text-align: center;
+    }
+    
+    /* Error Message Styles */
+    .error-message {
+      background-color: rgba(176, 0, 32, 0.1);
+      color: var(--md-error);
+      padding: var(--md-spacing-md);
+      border-radius: var(--md-radius-sm);
+      border-left: 4px solid var(--md-error);
+      margin-bottom: var(--md-spacing-lg);
+      font-size: var(--md-font-size-body2);
+    }
+    
+    .success-message {
+      background-color: rgba(46, 125, 50, 0.1);
+      color: #2e7d32;
+      padding: var(--md-spacing-md);
+      border-radius: var(--md-radius-sm);
+      border-left: 4px solid #2e7d32;
+      margin-bottom: var(--md-spacing-lg);
+      font-size: var(--md-font-size-body2);
+    }
+    
+    /* Section Styles */
+    .section-title {
+      color: var(--md-on-surface);
+      margin-bottom: var(--md-spacing-lg);
+      font-size: var(--md-font-size-h6);
+      font-weight: var(--md-font-weight-medium);
+    }
+    
+    /* Table Styles */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: var(--md-spacing-2xl);
+      font-size: var(--md-font-size-body2);
+    }
+    
+    .data-table th {
+      background-color: var(--md-surface-variant);
+      color: var(--md-primary);
+      padding: var(--md-spacing-md);
+      text-align: left;
+      font-weight: var(--md-font-weight-medium);
+      border-bottom: 2px solid var(--md-outline);
+    }
+    
+    .data-table td {
+      padding: var(--md-spacing-md);
+      border-bottom: 1px solid var(--md-outline-variant);
+    }
+    
+    .data-table tr:hover {
+      background-color: var(--md-surface-variant);
+    }
+    
+    /* Form Styles */
+    .admin-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--md-spacing-md);
+      align-items: end;
+      padding: var(--md-spacing-lg);
+      background-color: var(--md-surface-variant);
+      border-radius: var(--md-radius-md);
+    }
+    
+    .form-field {
+      min-width: 150px;
+      flex: 1;
+    }
+    
+    .form-select {
+      padding: var(--md-spacing-md);
+      border: 1px solid var(--md-outline);
+      border-radius: var(--md-radius-sm);
+      background-color: var(--md-surface);
+      color: var(--md-on-surface);
+      font-family: var(--md-font-family);
+      font-size: var(--md-font-size-body1);
+      transition: all var(--md-transition-fast);
+    }
+    
+    .form-select:focus {
+      outline: none;
+      border-color: var(--md-primary);
+      box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.12);
+    }
+    
+    .submit-button {
+      white-space: nowrap;
+    }
+    
+    /* Utility Classes */
+    .md-text-success {
+      color: #2e7d32 !important;
+    }
+    
+    .md-text-error {
+      color: #d32f2f !important;
+    }
+    
+    .md-text-warning {
+      color: #f57c00 !important;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .admin-layout {
+        flex-direction: column;
+      }
+      
+      .admin-sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--md-outline-variant);
+      }
+      
+      .nav-menu {
+        display: flex;
+        gap: var(--md-spacing-sm);
+        margin-top: var(--md-spacing-md);
+      }
+      
+      .nav-item {
+        margin-bottom: 0;
+        flex: 1;
+      }
+      
+      .nav-link {
+        justify-content: center;
+        font-size: var(--md-font-size-body2);
+        padding: var(--md-spacing-sm);
+      }
+      
+      .admin-content {
+        padding: var(--md-spacing-md);
+      }
+      
+      .admin-form {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      .form-field {
+        min-width: unset;
+      }
+      
+      .data-table {
+        font-size: var(--md-font-size-caption);
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+      
+      .data-table th,
+      .data-table td {
+        padding: var(--md-spacing-sm);
+        min-width: 100px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .data-table th,
+      .data-table td {
+        min-width: 80px;
+        font-size: var(--md-font-size-caption);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-layout">
+    <!-- Sidebar -->
+    <nav class="admin-sidebar">
+      <div class="admin-header">
+        <h1 class="md-headline-4 admin-title">Administration</h1>
+        <a href="/dashboard" class="back-link">
+          <span>←</span>
+          Back to Dashboard
+        </a>
+      </div>
+      
+      <div class="nav-menu">
+        <div class="nav-item">
+          <a href="/admin/users" class="nav-link <%= currentPage === 'users' ? 'active' : '' %>">
+            <span class="nav-icon">👥</span>
+            <span>User Management</span>
+          </a>
+        </div>
+        <div class="nav-item">
+          <a href="/admin/organizations" class="nav-link <%= currentPage === 'organizations' ? 'active' : '' %>">
+            <span class="nav-icon">🏢</span>
+            <span>Organizations</span>
+          </a>
+        </div>
+      </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main class="admin-content">
+      <%- body %>
+    </main>
+  </div>
+
+  <!-- Theme System -->
+  <script src="/css/theme-system.js"></script>
+</body>
+</html>

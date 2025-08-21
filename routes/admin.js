@@ -158,4 +158,165 @@ router.post(
   }
 );
 
+// ============= ORGANIZATION MANAGEMENT ROUTES =============
+
+// GET /admin/organizations — list organizations
+router.get(
+  '/admin/organizations',
+  ensureAuth,
+  ensureAdmin,
+  (req, res) => {
+    // Get query parameters for success/error messages
+    const error = req.query.error || null;
+    const success = req.query.success || null;
+    
+    // First check if database has been migrated to new schema
+    db.all("PRAGMA table_info(organizations)", (err, columns) => {
+      if (err) {
+        logger.error('Failed to check organizations table structure', { error: err.message });
+        return res.status(500).render('admin_organizations', { 
+          organizations: [], 
+          error: 'Failed to check database structure',
+          success: null
+        });
+      }
+
+      const columnNames = columns.map(col => col.name);
+      const hasOrgTable = columnNames.length > 0;
+
+      if (!hasOrgTable) {
+        // Database hasn't been migrated yet - show migration notice
+        logger.warn('Database has not been migrated to new schema');
+        return res.status(500).render('admin_organizations', { 
+          organizations: [], 
+          error: 'Database migration required. Please run: node scripts/migrate.js',
+          needsMigration: true,
+          success: null
+        });
+      }
+
+      // Get organizations
+      db.all(
+        `SELECT id, name, description, influx_token, created_at, updated_at 
+         FROM organizations 
+         ORDER BY name`,
+        (err, rows) => {
+          if (err) {
+            logger.error('Failed to fetch organizations list', { error: err.message });
+            return res.status(500).render('admin_organizations', { 
+              organizations: [], 
+              error: 'Failed to load organizations',
+              success: null
+            });
+          }
+          
+          res.render('admin_organizations', { 
+            organizations: rows, 
+            error: error,
+            success: success,
+            needsMigration: false
+          });
+        }
+      );
+    });
+  }
+);
+
+// POST /admin/organizations — create new organization
+router.post(
+  '/admin/organizations',
+  ensureAuth,
+  ensureAdmin,
+  (req, res) => {
+    const { name, description, influx_token } = req.body;
+    
+    // Basic validation
+    if (!name || !name.trim()) {
+      return res.redirect('/admin/organizations?error=Organization name is required');
+    }
+    
+    if (!influx_token || !influx_token.trim()) {
+      return res.redirect('/admin/organizations?error=InfluxDB token is required');
+    }
+    
+    db.run(
+      `INSERT INTO organizations (name, description, influx_token) 
+       VALUES (?, ?, ?)`,
+      [name.trim(), description?.trim() || '', influx_token.trim()],
+      function(err) {
+        if (err) {
+          logger.error('Failed to create organization', { 
+            error: err.message, 
+            name,
+            description
+          });
+          
+          if (err.message.includes('UNIQUE constraint failed')) {
+            return res.redirect('/admin/organizations?error=Organization name already exists');
+          }
+          
+          return res.redirect('/admin/organizations?error=Failed to create organization');
+        }
+        
+        logger.info('Organization created successfully', { 
+          id: this.lastID, 
+          name, 
+          description 
+        });
+        res.redirect('/admin/organizations?success=Organization created successfully');
+      }
+    );
+  }
+);
+
+// POST /admin/organizations/:id/delete — delete organization
+router.post(
+  '/admin/organizations/:id/delete',
+  ensureAuth,
+  ensureAdmin,
+  (req, res) => {
+    const orgId = parseInt(req.params.id);
+    
+    // Don't allow deletion of the default organization (ID 1)
+    if (orgId === 1) {
+      return res.redirect('/admin/organizations?error=Cannot delete the default organization');
+    }
+    
+    // Check if organization has users
+    db.get(
+      `SELECT COUNT(*) as user_count FROM users WHERE organization_id = ?`,
+      [orgId],
+      (err, result) => {
+        if (err) {
+          logger.error('Failed to check organization users', { error: err.message, orgId });
+          return res.redirect('/admin/organizations?error=Failed to check organization users');
+        }
+        
+        if (result.user_count > 0) {
+          return res.redirect('/admin/organizations?error=Cannot delete organization with existing users');
+        }
+        
+        // Delete the organization
+        db.run(
+          `DELETE FROM organizations WHERE id = ?`,
+          [orgId],
+          function(err) {
+            if (err) {
+              logger.error('Failed to delete organization', { error: err.message, orgId });
+              return res.redirect('/admin/organizations?error=Failed to delete organization');
+            }
+            
+            if (this.changes === 0) {
+              return res.redirect('/admin/organizations?error=Organization not found');
+            }
+            
+            logger.info('Organization deleted successfully', { orgId });
+            res.redirect('/admin/organizations?success=Organization deleted successfully');
+          }
+        );
+      }
+    );
+  }
+);
+
 module.exports = router;
