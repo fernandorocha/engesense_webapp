@@ -25,7 +25,8 @@ router.get(
           users: [], 
           organizations: [],
           error: 'Failed to check database structure',
-          success: null
+          success: null,
+          currentUser: req.session.user
         });
       }
 
@@ -42,7 +43,8 @@ router.get(
           organizations: [],
           error: 'Database migration required. Please run: node scripts/migrate.js',
           needsMigration: true,
-          success: null
+          success: null,
+          currentUser: req.session.user
         });
       }
 
@@ -59,7 +61,8 @@ router.get(
               users: [], 
               organizations: [],
               error: 'Failed to load users',
-              success: null
+              success: null,
+              currentUser: req.session.user
             });
           }
           
@@ -71,7 +74,8 @@ router.get(
                 users: [], 
                 organizations: [],
                 error: 'Failed to load organizations',
-                success: null
+                success: null,
+                currentUser: req.session.user
               });
             }
             
@@ -80,7 +84,8 @@ router.get(
               organizations: organizations,
               error: error,
               success: success,
-              needsMigration: false
+              needsMigration: false,
+              currentUser: req.session.user
             });
           });
         }

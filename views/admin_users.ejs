@@ -67,15 +67,19 @@
                 </span>
               </td>
               <td>${u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}</td>
-              <td>
-                <div class="action-buttons">
-                  <a href="/admin/users/${u.id}/edit" class="action-btn edit-btn" title="Edit User">
-                    <span class="md-icon md-icon-sm">✏️</span>
-                  </a>
-                  <button type="button" class="action-btn delete-btn" title="Delete User" onclick="confirmDelete(${u.id}, '${u.username}')">
-                    <span class="md-icon md-icon-sm">🗑️</span>
-                  </button>
-                </div>
+              <td style="white-space: nowrap;">
+                <a href="/admin/users/${u.id}/edit" class="md-button md-button-outlined" style="color: var(--md-primary); border-color: var(--md-primary); font-size: 0.8em; padding: 4px 8px; margin-right: 8px; text-decoration: none; display: inline-block;">
+                  Edit
+                </a>
+                ${currentUser && u.username !== currentUser.username ? `
+                  <form method="POST" action="/admin/users/${u.id}/delete" style="display: inline;" 
+                        onsubmit="return confirm('Are you sure you want to delete user &quot;${u.username}&quot;? This action cannot be undone.')">
+                    <input type="hidden" name="_method" value="DELETE">
+                    <button type="submit" class="md-button md-button-outlined" style="color: var(--md-error); border-color: var(--md-error); font-size: 0.8em; padding: 4px 8px;">
+                      Delete
+                    </button>
+                  </form>
+                ` : '<span style="color: var(--md-on-surface-variant); font-size: 0.8em; margin-left: 8px;">Current User</span>'}
               </td>
             </tr>
           `).join('')}
@@ -187,76 +191,6 @@
       </form>
     </div>
     ` : ''}
-
-    <!-- Hidden form for delete confirmation -->
-    <form id="deleteForm" method="POST" style="display: none;">
-      <input type="hidden" name="_method" value="DELETE">
-    </form>
-
-    <style>
-      .action-buttons {
-        display: flex;
-        gap: var(--md-spacing-xs);
-        justify-content: center;
-      }
-      
-      .action-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
-        border: none;
-        border-radius: var(--md-radius-sm);
-        cursor: pointer;
-        transition: all var(--md-transition-fast);
-        text-decoration: none;
-        font-size: 14px;
-      }
-      
-      .edit-btn {
-        background-color: var(--md-primary);
-        color: var(--md-on-primary);
-      }
-      
-      .edit-btn:hover {
-        background-color: var(--md-primary-dark);
-        color: var(--md-on-primary);
-        text-decoration: none;
-      }
-      
-      .delete-btn {
-        background-color: var(--md-error);
-        color: var(--md-on-error);
-      }
-      
-      .delete-btn:hover {
-        background-color: var(--md-error-dark, #c62828);
-      }
-      
-      @media (max-width: 768px) {
-        .action-buttons {
-          flex-direction: column;
-          gap: var(--md-spacing-2xs);
-        }
-        
-        .action-btn {
-          width: 28px;
-          height: 28px;
-          font-size: 12px;
-        }
-      }
-    </style>
-
-    <script>
-      function confirmDelete(userId, username) {
-        if (confirm('Are you sure you want to delete user "' + username + '"? This action cannot be undone.')) {
-          const form = document.getElementById('deleteForm');
-          form.action = '/admin/users/' + userId + '/delete';
-          form.submit();
-        }
-      }
-    </script>
   `;
 %>
 
