@@ -186,7 +186,15 @@
 
     <% if (error) { %>
       <div class="error-message">
-        <strong>Error:</strong> <%= error %>
+        <% if (typeof needsMigration !== 'undefined' && needsMigration) { %>
+          <strong>⚠️ Database Migration Required</strong><br>
+          Your database needs to be upgraded to use the new user management features.<br><br>
+          <strong>Run this command to upgrade:</strong><br>
+          <code style="background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-family: monospace;">node scripts/migrate.js</code><br><br>
+          This will safely add new fields while preserving all existing user data.
+        <% } else { %>
+          <strong>Error:</strong> <%= error %>
+        <% } %>
       </div>
     <% } %>
 
@@ -230,6 +238,7 @@
       </table>
     </div>
 
+    <% if (!(typeof needsMigration !== 'undefined' && needsMigration)) { %>
     <div class="md-card md-elevation-1" style="padding: var(--md-spacing-xl);">
       <h2 class="section-title">Create New User</h2>
       <form method="POST" action="/admin/users" class="create-user-form">
@@ -332,6 +341,7 @@
         </button>
       </form>
     </div>
+    <% } %>
   </div>
 
   <!-- Theme System -->
