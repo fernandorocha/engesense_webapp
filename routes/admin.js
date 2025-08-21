@@ -494,6 +494,125 @@ router.post(
   }
 );
 
+// GET /admin/organizations/:id/edit — edit organization form
+router.get(
+  '/admin/organizations/:id/edit',
+  ensureAuth,
+  ensureAdmin,
+  (req, res) => {
+    const orgId = parseInt(req.params.id);
+    const error = req.query.error || null;
+    
+    // Check if database has been migrated first
+    db.all("PRAGMA table_info(organizations)", (err, columns) => {
+      if (err) {
+        logger.error('Failed to check organizations table structure', { error: err.message });
+        return res.redirect('/admin/organizations?error=Failed to check database structure');
+      }
+
+      const columnNames = columns.map(col => col.name);
+      const hasOrgTable = columnNames.length > 0;
+
+      if (!hasOrgTable) {
+        return res.redirect('/admin/organizations?error=Database migration required. Please run: node scripts/migrate.js');
+      }
+
+      // Get organization details
+      db.get(
+        `SELECT id, name, description, influx_token, created_at, updated_at
+         FROM organizations 
+         WHERE id = ?`,
+        [orgId],
+        (err, organization) => {
+          if (err) {
+            logger.error('Failed to fetch organization details', { error: err.message, orgId });
+            return res.redirect('/admin/organizations?error=Failed to load organization details');
+          }
+          
+          if (!organization) {
+            return res.redirect('/admin/organizations?error=Organization not found');
+          }
+          
+          res.render('admin_organization_edit', { 
+            organization: organization,
+            error: error
+          });
+        }
+      );
+    });
+  }
+);
+
+// POST /admin/organizations/:id/update — update organization
+router.post(
+  '/admin/organizations/:id/update',
+  ensureAuth,
+  ensureAdmin,
+  (req, res) => {
+    const orgId = parseInt(req.params.id);
+    const { name, description, influx_token } = req.body;
+    
+    // Basic validation
+    if (!name || !name.trim()) {
+      return res.redirect(`/admin/organizations/${orgId}/edit?error=Organization name is required`);
+    }
+    
+    if (!influx_token || !influx_token.trim()) {
+      return res.redirect(`/admin/organizations/${orgId}/edit?error=InfluxDB token is required`);
+    }
+    
+    // Check if database has been migrated first
+    db.all("PRAGMA table_info(organizations)", (err, columns) => {
+      if (err) {
+        logger.error('Failed to check organizations table structure', { error: err.message });
+        return res.redirect('/admin/organizations?error=Failed to check database structure');
+      }
+
+      const columnNames = columns.map(col => col.name);
+      const hasOrgTable = columnNames.length > 0;
+
+      if (!hasOrgTable) {
+        return res.redirect('/admin/organizations?error=Database migration required. Please run: node scripts/migrate.js');
+      }
+
+      // Update the organization
+      db.run(
+        `UPDATE organizations 
+         SET name = ?, description = ?, influx_token = ?, updated_at = datetime('now')
+         WHERE id = ?`,
+        [name.trim(), description?.trim() || '', influx_token.trim(), orgId],
+        function(err) {
+          if (err) {
+            logger.error('Failed to update organization', { 
+              error: err.message, 
+              orgId,
+              name,
+              description
+            });
+            
+            if (err.message.includes('UNIQUE constraint failed')) {
+              return res.redirect(`/admin/organizations/${orgId}/edit?error=Organization name already exists`);
+            }
+            
+            return res.redirect(`/admin/organizations/${orgId}/edit?error=Failed to update organization`);
+          }
+          
+          if (this.changes === 0) {
+            return res.redirect('/admin/organizations?error=Organization not found');
+          }
+          
+          logger.info('Organization updated successfully', { 
+            orgId, 
+            name, 
+            description 
+          });
+          res.redirect('/admin/organizations?success=Organization updated successfully');
+        }
+      );
+    });
+  }
+);
+
 // POST /admin/organizations/:id/delete — delete organization
 router.post(
   '/admin/organizations/:id/delete',
