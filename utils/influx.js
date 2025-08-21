@@ -26,6 +26,7 @@ async function getBuckets(organization) {
     `;
     
     logger.debug('Executing buckets query', { query: flux.trim(), organization });
+    console.log('InfluxDB Query - getBuckets():', flux.trim());
 
     const buckets = [];
     return new Promise((resolve, reject) => {
@@ -80,6 +81,7 @@ async function getMeasurements(organization, buckets) {
         schema.measurements(bucket: "${bucket}")
       `;
       logger.debug('Executing measurements query', { query: flux.trim(), bucket });
+      console.log(`InfluxDB Query - getMeasurements() for bucket "${bucket}":`, flux.trim());
       await new Promise((resolve, reject) => {
         queryApi.queryRows(flux, {
           next(row, tableMeta) {
@@ -279,6 +281,7 @@ async function querySensorReadings({ organization, range, start, stop, limit = 1
         aggregation,
         organization 
       });
+      console.log(`InfluxDB Query - querySensorReadings() for bucket "${bucket}":`, flux.trim());
 
       return new Promise((resolve, reject) => {
         const bucketReadings = [];
