@@ -18,7 +18,6 @@ db.serialize(() => {
       id           INTEGER PRIMARY KEY AUTOINCREMENT,
       name         TEXT UNIQUE NOT NULL,
       description  TEXT,
-      influx_url   TEXT,
       influx_token TEXT,
       created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -35,8 +34,8 @@ db.serialize(() => {
   // Create default organization
   logger.info('Step 3: Creating default organization...');
   db.run(
-    `INSERT OR IGNORE INTO organizations (name, description, influx_url, influx_token) VALUES (?, ?, ?, ?)`,
-    ['Engesense', 'Default Engesense Organization', process.env.INFLUX_URL || '', process.env.INFLUX_TOKEN || ''],
+    `INSERT OR IGNORE INTO organizations (name, description, influx_token) VALUES (?, ?, ?)`,
+    ['Engesense', 'Default Engesense Organization', process.env.INFLUX_TOKEN || ''],
     function(err) {
       if (err) {
         logger.error('Failed to create default organization', { error: err.message });

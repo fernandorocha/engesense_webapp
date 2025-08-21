@@ -16,7 +16,7 @@ function getOrganizationInfluxCredentials(organizationId) {
     }
 
     db.get(`
-      SELECT influx_url, influx_token, name 
+      SELECT influx_token, name 
       FROM organizations 
       WHERE id = ?
     `, [organizationId], (err, org) => {
@@ -32,9 +32,9 @@ function getOrganizationInfluxCredentials(organizationId) {
         return reject(new Error(`Organization not found: ${organizationId}`));
       }
 
-      // Fallback to environment variables if organization credentials are empty
+      // Use environment URL and organization token (with environment fallback)
       const credentials = {
-        url: org.influx_url || process.env.INFLUX_URL,
+        url: process.env.INFLUX_URL,
         token: org.influx_token || process.env.INFLUX_TOKEN,
         org_name: org.name
       };

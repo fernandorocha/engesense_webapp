@@ -11,7 +11,6 @@ db.serialize(() => {
       id           INTEGER PRIMARY KEY AUTOINCREMENT,
       name         TEXT UNIQUE NOT NULL,
       description  TEXT,
-      influx_url   TEXT,
       influx_token TEXT,
       created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -65,8 +64,8 @@ db.serialize(() => {
     let orgId;
     if (!orgRow) {
       db.run(
-        `INSERT INTO organizations (name, description, influx_url, influx_token) VALUES (?, ?, ?, ?)`,
-        ['Engesense', 'Default Engesense Organization', process.env.INFLUX_URL || '', process.env.INFLUX_TOKEN || ''],
+        `INSERT INTO organizations (name, description, influx_token) VALUES (?, ?, ?)`,
+        ['Engesense', 'Default Engesense Organization', process.env.INFLUX_TOKEN || ''],
         function(err) {
           if (err) {
             logger.error('Failed to seed default organization', { error: err.message });
