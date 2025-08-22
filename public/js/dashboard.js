@@ -168,7 +168,8 @@ class Dashboard {
 
   initializeCharts() {
     this.charts.initChart('sensorChart');
-    //this.charts.showNoDataMessage();
+    // Show the initial "no measurements selected" message
+    this.charts.showNoDataMessage('noMeasurements');
   }
 
   initializeStats() {
@@ -256,8 +257,7 @@ class Dashboard {
     if (this.ui.selectedMeasurements.length > 0) {
       await this.loadAndRender();
     } else {
-      // Use ApexCharts' built-in noData handling by rendering with empty data
-      this.charts.renderChart({});
+      this.charts.showNoDataMessage('noMeasurements');
       this.stats.showNoStatsMessage();
     }
   }
@@ -282,8 +282,7 @@ class Dashboard {
       if (this.ui.selectedMeasurements.length > 0) {
         await this.loadAndRender();
       } else {
-        // Use ApexCharts' built-in noData handling by rendering with empty data
-        this.charts.renderChart({});
+        this.charts.showNoDataMessage('noMeasurements');
         this.stats.showNoStatsMessage();
       }
     }
@@ -291,8 +290,7 @@ class Dashboard {
 
   async loadAndRender(timeOptions = {}) {
     if (this.ui.selectedMeasurements.length === 0) {
-      // Use ApexCharts' built-in noData handling by rendering with empty data
-      this.charts.renderChart({});
+      this.charts.showNoDataMessage('noMeasurements');
       this.stats.showNoStatsMessage();
       return;
     }
@@ -337,11 +335,16 @@ class Dashboard {
 
       if (!result.readings || result.readings.length === 0) {
         //this.ui.showNoDataNotification();
-        // Use ApexCharts' built-in noData handling by rendering with empty data
-        this.charts.renderChart({}, this.ui.measurementDisplayFormatter, xInterval);
+        this.charts.showNoDataMessage('noData');
         this.stats.showNoStatsMessage();
+        // Still show empty chart with full interval if possible
+        if (xInterval) {
+          this.charts.renderChart({}, this.ui.measurementDisplayFormatter, xInterval);
+        }
         return;
       }
+
+      this.ui.hideNoDataNotification();
 
       // Update export fields
       if (start && stop) {
@@ -361,8 +364,7 @@ class Dashboard {
     } catch (error) {
       console.error('Failed to load and render data:', error);
       //this.ui.showNoDataNotification();
-      // Use ApexCharts' built-in noData handling by rendering with empty data
-      this.charts.renderChart({});
+      this.charts.showNoDataMessage('error');
       this.stats.showNoStatsMessage();
     }
   }
