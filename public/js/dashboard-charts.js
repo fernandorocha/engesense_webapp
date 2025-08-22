@@ -164,8 +164,13 @@ class DashboardCharts {
       series: datasets
     };
 
-    // Use setOption with complete replacement to ensure old series are removed
-    this.chart.setOption(option, true);
+    // Clear existing series first to ensure old measurements are removed
+    this.chart.setOption({
+      series: []
+    }, false);
+    
+    // Then set the new configuration
+    this.chart.setOption(option, false);
     return true;
   }
 
@@ -237,7 +242,11 @@ class DashboardCharts {
     if (this.chartContainer && this.chartContainer.innerHTML.includes('No Data Available')) {
       this.chartContainer.innerHTML = '';
       // Reinitialize chart after clearing
-      this.initializeEChart();
+      if (typeof echarts !== 'undefined') {
+        this.initializeEChart();
+      } else if (typeof createFallbackChart !== 'undefined') {
+        this.chart = createFallbackChart(this.chartContainer);
+      }
     }
   }
 

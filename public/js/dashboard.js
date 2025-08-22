@@ -231,6 +231,18 @@ class Dashboard {
     }
   }
 
+  clearMeasurements() {
+    this.ui.allMeasurements = [];
+    this.ui.selectedMeasurements = [];
+    
+    const measurementsDropdown = document.getElementById('measurementsDropdown');
+    if (measurementsDropdown) {
+      this.ui.populateDropdown(measurementsDropdown, [], []);
+      this.ui.updateDropdownText(measurementsDropdown, [], [], this.ui.measurementDisplayFormatter);
+      this.ui.updateCsvFields();
+    }
+  }
+
   // API handlers (called when dropdown is closed)
   async handleBucketsClose() {
     await this.loadMeasurements();

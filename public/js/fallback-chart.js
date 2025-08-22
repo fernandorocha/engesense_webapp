@@ -197,6 +197,109 @@ class FallbackChart {
   }
 }
 
+// Wrapper class for dashboard integration
+class FallbackChartWrapper {
+  constructor(container) {
+    this.container = container;
+    this.canvas = null;
+    this.chart = null;
+    this.initCanvas();
+  }
+  
+  initCanvas() {
+    // Clear container and create canvas
+    this.container.innerHTML = '';
+    this.canvas = document.createElement('canvas');
+    this.canvas.style.width = '100%';
+    this.canvas.style.height = '100%';
+    this.container.appendChild(this.canvas);
+    
+    // Set canvas size
+    this.canvas.width = this.container.offsetWidth || 800;
+    this.canvas.height = this.container.offsetHeight || 400;
+  }
+  
+  render(datasets) {
+    if (!this.canvas) {
+      this.initCanvas();
+    }
+    
+    if (!datasets || datasets.length === 0) {
+      this.showNoData();
+      return;
+    }
+    
+    // Convert ECharts-style datasets to Chart.js-style data
+    const labels = [];
+    const convertedDatasets = [];
+    
+    if (datasets.length > 0 && datasets[0].data && datasets[0].data.length > 0) {
+      // Extract timestamps for labels
+      datasets[0].data.forEach(point => {
+        if (Array.isArray(point) && point.length >= 2) {
+          labels.push(new Date(point[0]).toLocaleTimeString());
+        }
+      });
+      
+      // Convert each dataset
+      datasets.forEach(dataset => {
+        const values = dataset.data.map(point => 
+          Array.isArray(point) ? point[1] : point
+        );
+        
+        convertedDatasets.push({
+          label: dataset.label || 'Data',
+          data: values,
+          borderColor: dataset.borderColor || '#1e88e5',
+          backgroundColor: dataset.backgroundColor || 'rgba(30, 136, 229, 0.2)'
+        });
+      });
+    }
+    
+    // Create fallback chart
+    const ctx = this.canvas.getContext('2d');
+    this.chart = new FallbackChart(ctx, {
+      data: {
+        labels: labels,
+        datasets: convertedDatasets
+      }
+    });
+  }
+  
+  showNoData() {
+    if (!this.canvas) {
+      this.initCanvas();
+    }
+    
+    const ctx = this.canvas.getContext('2d');
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    
+    ctx.fillStyle = '#666';
+    ctx.font = '18px Roboto, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('No Data Available', this.canvas.width / 2, this.canvas.height / 2 - 10);
+    
+    ctx.font = '14px Roboto, sans-serif';
+    ctx.fillStyle = '#999';
+    ctx.fillText('Select buckets and measurements, then set a time range to view sensor data.', 
+                this.canvas.width / 2, this.canvas.height / 2 + 20);
+  }
+  
+  dispose() {
+    if (this.container) {
+      this.container.innerHTML = '';
+    }
+    this.canvas = null;
+    this.chart = null;
+  }
+}
+
+// Create the createFallbackChart function that dashboard-charts.js expects
+window.createFallbackChart = function(container) {
+  return new FallbackChartWrapper(container);
+};
+
 // Create a global Chart constructor if Chart.js is not available and ECharts is also not available
 if (typeof Chart === 'undefined' && typeof echarts === 'undefined') {
   window.Chart = FallbackChart;
