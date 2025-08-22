@@ -1,13 +1,14 @@
 /**
- * Dashboard Charts module - handles chart rendering and visualization
+ * Dashboard Charts module - handles chart rendering and visualization with ApexCharts
  */
 class DashboardCharts {
   constructor() {
     this.chart = null;
     this.chartContainer = null;
+    // Darker, more visible colors for better contrast
     this.colors = [
-      '#1e88e5', '#e53935', '#43a047', '#fb8c00',
-      '#8e24aa', '#00acc1', '#fdd835', '#f4511e'
+      '#0d47a1', '#b71c1c', '#1b5e20', '#e65100',
+      '#4a148c', '#006064', '#f57f17', '#bf360c'
     ];
   }
 
@@ -21,8 +22,8 @@ class DashboardCharts {
     }
 
     // Initialize chart based on available library
-    if (typeof echarts !== 'undefined') {
-      this.initializeEChart();
+    if (typeof ApexCharts !== 'undefined') {
+      this.initializeApexChart();
       return true;
     } else if (typeof createFallbackChart !== 'undefined') {
       // Use fallback chart implementation
@@ -42,7 +43,26 @@ class DashboardCharts {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 
-  // Create chart datasets from processed data
+  // Create chart datasets from processed data for ApexCharts
+  createApexChartSeries(datasetsByMeasurement, displayFormatter = null) {
+    const series = Object.keys(datasetsByMeasurement).map((measurement, index) => {
+      const color = this.colors[index % this.colors.length];
+      const displayName = displayFormatter ? displayFormatter(measurement) : measurement;
+      
+      return {
+        name: displayName,
+        color: color,
+        data: datasetsByMeasurement[measurement].timestamps.map((timestamp, i) => ({
+          x: new Date(timestamp).getTime(),
+          y: datasetsByMeasurement[measurement].values[i]
+        }))
+      };
+    });
+
+    return series;
+  }
+
+  // Create chart datasets from processed data (legacy format for fallback)
   createChartDatasets(datasetsByMeasurement, displayFormatter = null) {
     const datasets = Object.keys(datasetsByMeasurement).map((measurement, index) => {
       const color = this.colors[index % this.colors.length];
@@ -69,103 +89,142 @@ class DashboardCharts {
     return datasets;
   }
 
-  // Render chart with ECharts
-  renderEChart(datasets) {
-    if (!this.chart || typeof echarts === 'undefined') {
-      console.error('ECharts not available');
+  // Render chart with ApexCharts
+  renderApexChart(series) {
+    if (!this.chart || typeof ApexCharts === 'undefined') {
+      console.error('ApexCharts not available');
       return false;
     }
 
-    const option = {
+    const options = {
+      series: series,
+      chart: {
+        type: 'line',
+        height: 500,
+        zoom: {
+          type: 'x',
+          enabled: true,
+          autoScaleYaxis: true
+        },
+        toolbar: {
+          autoSelected: 'zoom'
+        }
+      },
+      dataLabels: {
+        enabled: false
+      },
+      markers: {
+        size: 0,
+      },
       title: {
         text: 'Sensor Data Over Time',
-        left: 'center',
-        textStyle: {
-          fontSize: 18,
+        align: 'center',
+        style: {
+          fontSize: '18px',
           fontWeight: 'bold'
         }
       },
+      fill: {
+        type: 'gradient',
+        gradient: {
+          shadeIntensity: 1,
+          inverseColors: false,
+          opacityFrom: 0.5,
+          opacityTo: 0,
+          stops: [0, 90, 100]
+        },
+      },
+      yaxis: {
+        labels: {
+          formatter: function (val) {
+            return (val).toFixed(2);
+          },
+        },
+        title: {
+          text: 'Value'
+        },
+      },
+      xaxis: {
+        type: 'datetime',
+        title: {
+          text: 'Time'
+        }
+      },
       tooltip: {
-        trigger: 'axis',
-        axisPointer: {
-          type: 'cross',
-          label: {
-            backgroundColor: '#6a7985'
+        shared: true,
+        intersect: false,
+        x: {
+          formatter: function(val) {
+            // Show complete date and time
+            return new Date(val).toLocaleString('en-US', {
+              year: 'numeric',
+              month: '2-digit', 
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: false
+            });
           }
         },
-        formatter: function(params) {
-          let result = `<strong>${new Date(params[0].value[0]).toLocaleString()}</strong><br/>`;
-          params.forEach(param => {
-            result += `${param.marker} ${param.seriesName}: ${param.value[1]?.toFixed(2) || 'N/A'}<br/>`;
+        y: {
+          formatter: function (val, opts) {
+            if (val !== null && val !== undefined) {
+              return `${opts.w.globals.seriesNames[opts.seriesIndex]}: ${val.toFixed(2)}`;
+            }
+            return '';
+          }
+        },
+        custom: function({series, seriesIndex, dataPointIndex, w}) {
+          // Get the timestamp for this data point
+          const timestamp = w.globals.seriesX[seriesIndex][dataPointIndex];
+          const formattedDate = new Date(timestamp).toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit', 
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
           });
-          return result;
+          
+          // Build tooltip showing all measurements at this timestamp
+          let tooltipContent = `<div class="apexcharts-tooltip-title">${formattedDate}</div>`;
+          
+          // Show all series values for this timestamp
+          series.forEach((seriesData, index) => {
+            const value = seriesData[dataPointIndex];
+            if (value !== null && value !== undefined) {
+              const color = w.globals.colors[index];
+              tooltipContent += `
+                <div class="apexcharts-tooltip-series-group" style="order: 1; display: flex;">
+                  <span class="apexcharts-tooltip-marker" style="background-color: ${color};"></span>
+                  <div class="apexcharts-tooltip-text" style="font-family: Helvetica, Arial, sans-serif; font-size: 12px;">
+                    <div class="apexcharts-tooltip-y-group">
+                      <span class="apexcharts-tooltip-text-y-label">${w.globals.seriesNames[index]}: </span>
+                      <span class="apexcharts-tooltip-text-y-value">${value.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }
+          });
+          
+          return tooltipContent;
         }
       },
       legend: {
-        data: datasets.map(d => d.name),
-        top: '10%',
-        left: 'center'
+        position: 'top',
+        horizontalAlign: 'center'
       },
-      grid: {
-        left: '3%',
-        right: '4%',
-        bottom: '10%',
-        top: '20%',
-        containLabel: true
-      },
-      toolbox: {
-        feature: {
-          saveAsImage: {
-            title: 'Save as Image'
-          },
-          dataZoom: {
-            title: {
-              zoom: 'Zoom',
-              back: 'Reset Zoom'
-            }
-          }
-        }
-      },
-      xAxis: {
-        type: 'time',
-        boundaryGap: false,
-        axisLabel: {
-          formatter: function(value) {
-            return new Date(value).toLocaleTimeString();
-          }
-        }
-      },
-      yAxis: {
-        type: 'value',
-        axisLabel: {
-          formatter: '{value}'
-        }
-      },
-      dataZoom: [
-        {
-          type: 'inside',
-          start: 0,
-          end: 100
-        },
-        {
-          start: 0,
-          end: 100,
-          handleIcon: 'M10.7,11.9v-1.3H9.3v1.3c-4.9,0.3-8.8,4.4-8.8,9.4c0,5,3.9,9.1,8.8,9.4v1.3h1.3v-1.3c4.9-0.3,8.8-4.4,8.8-9.4C19.5,16.3,15.6,12.2,10.7,11.9z',
-          handleSize: '80%',
-          handleStyle: {
-            color: '#fff',
-            shadowBlur: 3,
-            shadowColor: 'rgba(0, 0, 0, 0.6)',
-            shadowOffsetX: 2,
-            shadowOffsetY: 2
-          }
-        }
-      ],
-      series: datasets
+      stroke: {
+        width: 4,
+        curve: 'smooth'
+      }
     };
 
-    // Use setOption without force replacement to avoid disposal issues
-    this.chart.setOption(option, false);
+    // Update chart with new data
+    this.chart.updateOptions(options, true);
     return true;
   }
 
@@ -197,17 +256,17 @@ class DashboardCharts {
 
     this.hideNoDataMessage();
     
-    const datasets = this.createChartDatasets(datasetsByMeasurement, displayFormatter);
-    
     // Ensure chart is properly initialized
-    if (typeof echarts !== 'undefined') {
+    if (typeof ApexCharts !== 'undefined') {
       if (!this.chart) {
-        this.initializeEChart();
+        this.initializeApexChart();
       }
       if (this.chart) {
-        return this.renderEChart(datasets);
+        const series = this.createApexChartSeries(datasetsByMeasurement, displayFormatter);
+        return this.renderApexChart(series);
       }
     } else if (typeof createFallbackChart !== 'undefined') {
+      const datasets = this.createChartDatasets(datasetsByMeasurement, displayFormatter);
       return this.renderFallbackChart(datasets);
     } else {
       console.error('No chart rendering library available');
@@ -237,25 +296,43 @@ class DashboardCharts {
     if (this.chartContainer && this.chartContainer.innerHTML.includes('No Data Available')) {
       this.chartContainer.innerHTML = '';
       // Reinitialize chart after clearing
-      this.initializeEChart();
+      this.initializeApexChart();
     }
   }
 
-  // Initialize ECharts instance
-  initializeEChart() {
-    if (typeof echarts !== 'undefined' && this.chartContainer) {
+  // Initialize ApexCharts instance
+  initializeApexChart() {
+    if (typeof ApexCharts !== 'undefined' && this.chartContainer) {
       // Dispose existing chart if any
       if (this.chart) {
         this.dispose();
       }
-      this.chart = echarts.init(this.chartContainer);
+      
+      // Create a basic chart with empty data that will be updated later
+      const options = {
+        series: [],
+        chart: {
+          type: 'line',
+          height: 500
+        },
+        xaxis: {
+          type: 'datetime'
+        }
+      };
+      
+      this.chart = new ApexCharts(this.chartContainer, options);
+      this.chart.render();
     }
   }
 
   // Resize chart (useful for responsive design)
   resizeChart() {
-    if (this.chart && typeof this.chart.resize === 'function') {
-      this.chart.resize();
+    if (this.chart && typeof this.chart.updateOptions === 'function') {
+      this.chart.updateOptions({
+        chart: {
+          height: this.chartContainer ? this.chartContainer.offsetHeight : 500
+        }
+      });
     }
   }
 
@@ -263,8 +340,8 @@ class DashboardCharts {
   dispose() {
     if (this.chart) {
       try {
-        if (typeof this.chart.dispose === 'function') {
-          this.chart.dispose();
+        if (typeof this.chart.destroy === 'function') {
+          this.chart.destroy();
         }
       } catch (error) {
         console.warn('Error disposing chart:', error);
