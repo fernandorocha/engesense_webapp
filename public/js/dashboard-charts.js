@@ -164,8 +164,8 @@ class DashboardCharts {
       series: datasets
     };
 
-    // Use setOption without force replacement to avoid disposal issues
-    this.chart.setOption(option, false);
+    // Use setOption with complete replacement to ensure old series are removed
+    this.chart.setOption(option, true);
     return true;
   }
 
