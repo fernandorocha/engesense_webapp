@@ -256,7 +256,8 @@ class Dashboard {
     if (this.ui.selectedMeasurements.length > 0) {
       await this.loadAndRender();
     } else {
-      this.charts.showNoDataMessage();
+      // Use ApexCharts' built-in noData handling by rendering with empty data
+      this.charts.renderChart({});
       this.stats.showNoStatsMessage();
     }
   }
@@ -281,7 +282,8 @@ class Dashboard {
       if (this.ui.selectedMeasurements.length > 0) {
         await this.loadAndRender();
       } else {
-        this.charts.showNoDataMessage();
+        // Use ApexCharts' built-in noData handling by rendering with empty data
+        this.charts.renderChart({});
         this.stats.showNoStatsMessage();
       }
     }
@@ -289,7 +291,8 @@ class Dashboard {
 
   async loadAndRender(timeOptions = {}) {
     if (this.ui.selectedMeasurements.length === 0) {
-      this.charts.showNoDataMessage();
+      // Use ApexCharts' built-in noData handling by rendering with empty data
+      this.charts.renderChart({});
       this.stats.showNoStatsMessage();
       return;
     }
@@ -334,16 +337,11 @@ class Dashboard {
 
       if (!result.readings || result.readings.length === 0) {
         //this.ui.showNoDataNotification();
-        this.charts.showNoDataMessage();
+        // Use ApexCharts' built-in noData handling by rendering with empty data
+        this.charts.renderChart({}, this.ui.measurementDisplayFormatter, xInterval);
         this.stats.showNoStatsMessage();
-        // Still show empty chart with full interval if possible
-        if (xInterval) {
-          this.charts.renderChart({}, this.ui.measurementDisplayFormatter, xInterval);
-        }
         return;
       }
-
-      this.ui.hideNoDataNotification();
 
       // Update export fields
       if (start && stop) {
@@ -363,7 +361,8 @@ class Dashboard {
     } catch (error) {
       console.error('Failed to load and render data:', error);
       //this.ui.showNoDataNotification();
-      this.charts.showNoDataMessage();
+      // Use ApexCharts' built-in noData handling by rendering with empty data
+      this.charts.renderChart({});
       this.stats.showNoStatsMessage();
     }
   }

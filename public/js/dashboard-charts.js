@@ -208,6 +208,18 @@ class DashboardCharts {
       stroke: {
         width: 4,
         curve: 'smooth'
+      },
+      noData: {
+        text: 'No Data Available\nSelect buckets and measurements, then set a time range to view sensor data.',
+        align: 'center',
+        verticalAlign: 'middle',
+        offsetX: 0,
+        offsetY: 0,
+        style: {
+          color: '#666',
+          fontSize: '16px',
+          fontFamily: undefined
+        }
       }
     };
 
@@ -236,22 +248,29 @@ class DashboardCharts {
 
   // Main render method
   renderChart(datasetsByMeasurement, displayFormatter = null, xInterval = null) {
-    if (!datasetsByMeasurement || Object.keys(datasetsByMeasurement).length === 0) {
-      this.showNoDataMessage();
-      return false;
-    }
-
-    this.hideNoDataMessage();
     // Ensure chart is properly initialized
     if (typeof ApexCharts !== 'undefined') {
       if (!this.chart) {
         this.initializeApexChart();
       }
       if (this.chart) {
+        if (!datasetsByMeasurement || Object.keys(datasetsByMeasurement).length === 0) {
+          // Use ApexCharts' built-in noData handling by updating with empty series
+          this.chart.updateSeries([]);
+          return true;
+        }
+        
         const series = this.createApexChartSeries(datasetsByMeasurement, displayFormatter);
         return this.renderApexChart(series, xInterval);
       }
     } else if (typeof createFallbackChart !== 'undefined') {
+      // For fallback chart, keep the manual handling since it doesn't have built-in noData support
+      if (!datasetsByMeasurement || Object.keys(datasetsByMeasurement).length === 0) {
+        this.showNoDataMessage();
+        return false;
+      }
+      
+      this.hideNoDataMessage();
       const datasets = this.createChartDatasets(datasetsByMeasurement, displayFormatter);
       return this.renderFallbackChart(datasets);
     } else {
@@ -260,7 +279,7 @@ class DashboardCharts {
     }
   }
 
-  // Show no data message
+  // Show no data message (only used for fallback chart when ApexCharts is not available)
   showNoDataMessage() {
     // Properly dispose of existing chart first
     this.dispose();
@@ -277,7 +296,7 @@ class DashboardCharts {
     }
   }
 
-  // Hide no data message and prepare for chart
+  // Hide no data message and prepare for chart (only used for fallback chart when ApexCharts is not available)
   hideNoDataMessage() {
     if (this.chartContainer && this.chartContainer.innerHTML.includes('No Data Available')) {
       this.chartContainer.innerHTML = '';
@@ -303,6 +322,18 @@ class DashboardCharts {
         },
         xaxis: {
           type: 'datetime'
+        },
+        noData: {
+          text: 'No Data Available\nSelect buckets and measurements, then set a time range to view sensor data.',
+          align: 'center',
+          verticalAlign: 'middle',
+          offsetX: 0,
+          offsetY: 0,
+          style: {
+            color: '#666',
+            fontSize: '16px',
+            fontFamily: undefined
+          }
         }
       };
       
