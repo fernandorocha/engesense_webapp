@@ -197,11 +197,11 @@ class FallbackChart {
   }
 }
 
-// Create a global Chart constructor if Chart.js is not available and ECharts is also not available
-if (typeof Chart === 'undefined' && typeof echarts === 'undefined') {
+// Create a global Chart constructor if Chart.js is not available and ApexCharts is also not available
+if (typeof Chart === 'undefined' && typeof ApexCharts === 'undefined') {
   window.Chart = FallbackChart;
   console.log('Using fallback chart implementation');
-} else if (typeof echarts !== 'undefined') {
-  // ECharts is available, no need for fallback
-  console.log('ECharts is available and ready');
+} else if (typeof ApexCharts !== 'undefined') {
+  // ApexCharts is available, no need for fallback
+  console.log('ApexCharts is available and ready');
 }
