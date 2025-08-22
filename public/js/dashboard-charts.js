@@ -260,17 +260,41 @@ class DashboardCharts {
     }
   }
 
-  // Show no data message
-  showNoDataMessage() {
+  // Show no data message with different content based on the scenario
+  showNoDataMessage(messageType = 'noMeasurements') {
     // Properly dispose of existing chart first
     this.dispose();
     
     if (this.chartContainer) {
+      let title, subtitle, titleColor;
+      
+      switch (messageType) {
+        case 'noMeasurements':
+          title = 'No Measurements Selected';
+          subtitle = 'Select buckets and measurements to view sensor data.';
+          titleColor = '#666';
+          break;
+        case 'noData':
+          title = 'No Data Available';
+          subtitle = 'No data found for the selected time range. Try selecting a different time range.';
+          titleColor = '#666';
+          break;
+        case 'error':
+          title = 'Error Loading Data';
+          subtitle = 'Unable to load sensor data. Please check your connection and try again.';
+          titleColor = '#e53935';
+          break;
+        default:
+          title = 'No Data Available';
+          subtitle = 'Select buckets and measurements, then set a time range to view sensor data.';
+          titleColor = '#666';
+      }
+      
       this.chartContainer.innerHTML = `
         <div style="display: flex; align-items: center; justify-content: center; height: 400px; flex-direction: column;">
-          <div style="font-size: 18px; color: #666; margin-bottom: 10px;">No Data Available</div>
+          <div style="font-size: 18px; color: ${titleColor}; margin-bottom: 10px;">${title}</div>
           <div style="font-size: 14px; color: #999;">
-            Select buckets and measurements, then set a time range to view sensor data.
+            ${subtitle}
           </div>
         </div>
       `;
@@ -279,7 +303,9 @@ class DashboardCharts {
 
   // Hide no data message and prepare for chart
   hideNoDataMessage() {
-    if (this.chartContainer && this.chartContainer.innerHTML.includes('No Data Available')) {
+    if (this.chartContainer && (this.chartContainer.innerHTML.includes('No Data Available') || 
+        this.chartContainer.innerHTML.includes('No Measurements Selected') || 
+        this.chartContainer.innerHTML.includes('Error Loading Data'))) {
       this.chartContainer.innerHTML = '';
       // Reinitialize chart after clearing
       this.initializeApexChart();
