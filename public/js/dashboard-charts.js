@@ -5,10 +5,10 @@ class DashboardCharts {
   constructor() {
     this.chart = null;
     this.chartContainer = null;
-    // Darker, more visible colors for better contrast
+   
     this.colors = [
-      '#0d47a1', '#b71c1c', '#1b5e20', '#e65100',
-      '#4a148c', '#006064', '#f57f17', '#bf360c'
+      '#1e88e5', '#e53935', '#43a047', '#fb8c00',
+      '#8e24aa', '#00acc1', '#fdd835', '#f4511e'
     ];
   }
 
@@ -90,10 +90,20 @@ class DashboardCharts {
   }
 
   // Render chart with ApexCharts
-  renderApexChart(series) {
+  renderApexChart(series, xInterval = null) {
     if (!this.chart || typeof ApexCharts === 'undefined') {
       console.error('ApexCharts not available');
       return false;
+    }
+
+    // Set xaxis min/max if interval provided
+    let xaxisOptions = {
+      type: 'datetime',
+      title: { text: 'Time' }
+    };
+    if (xInterval && xInterval.start && xInterval.stop) {
+      xaxisOptions.min = new Date(xInterval.start).getTime();
+      xaxisOptions.max = new Date(xInterval.stop).getTime();
     }
 
     const options = {
@@ -124,16 +134,6 @@ class DashboardCharts {
           fontWeight: 'bold'
         }
       },
-      fill: {
-        type: 'gradient',
-        gradient: {
-          shadeIntensity: 1,
-          inverseColors: false,
-          opacityFrom: 0.5,
-          opacityTo: 0,
-          stops: [0, 90, 100]
-        },
-      },
       yaxis: {
         labels: {
           formatter: function (val) {
@@ -144,18 +144,12 @@ class DashboardCharts {
           text: 'Value'
         },
       },
-      xaxis: {
-        type: 'datetime',
-        title: {
-          text: 'Time'
-        }
-      },
+      xaxis: xaxisOptions,
       tooltip: {
         shared: true,
         intersect: false,
         x: {
           formatter: function(val) {
-            // Show complete date and time
             return new Date(val).toLocaleString('en-US', {
               year: 'numeric',
               month: '2-digit', 
@@ -176,7 +170,6 @@ class DashboardCharts {
           }
         },
         custom: function({series, seriesIndex, dataPointIndex, w}) {
-          // Get the timestamp for this data point
           const timestamp = w.globals.seriesX[seriesIndex][dataPointIndex];
           const formattedDate = new Date(timestamp).toLocaleString('en-US', {
             year: 'numeric',
@@ -187,11 +180,7 @@ class DashboardCharts {
             second: '2-digit',
             hour12: false
           });
-          
-          // Build tooltip showing all measurements at this timestamp
           let tooltipContent = `<div class="apexcharts-tooltip-title">${formattedDate}</div>`;
-          
-          // Show all series values for this timestamp
           series.forEach((seriesData, index) => {
             const value = seriesData[dataPointIndex];
             if (value !== null && value !== undefined) {
@@ -209,7 +198,6 @@ class DashboardCharts {
               `;
             }
           });
-          
           return tooltipContent;
         }
       },
@@ -223,7 +211,6 @@ class DashboardCharts {
       }
     };
 
-    // Update chart with new data
     this.chart.updateOptions(options, true);
     return true;
   }
@@ -248,14 +235,13 @@ class DashboardCharts {
   }
 
   // Main render method
-  renderChart(datasetsByMeasurement, displayFormatter = null) {
+  renderChart(datasetsByMeasurement, displayFormatter = null, xInterval = null) {
     if (!datasetsByMeasurement || Object.keys(datasetsByMeasurement).length === 0) {
       this.showNoDataMessage();
       return false;
     }
 
     this.hideNoDataMessage();
-    
     // Ensure chart is properly initialized
     if (typeof ApexCharts !== 'undefined') {
       if (!this.chart) {
@@ -263,7 +249,7 @@ class DashboardCharts {
       }
       if (this.chart) {
         const series = this.createApexChartSeries(datasetsByMeasurement, displayFormatter);
-        return this.renderApexChart(series);
+        return this.renderApexChart(series, xInterval);
       }
     } else if (typeof createFallbackChart !== 'undefined') {
       const datasets = this.createChartDatasets(datasetsByMeasurement, displayFormatter);

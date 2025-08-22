@@ -75,19 +75,36 @@ class Dashboard {
 
   initializeTimeControls() {
     const controls = this.ui.initializeTimeControls();
-    
+
+    // Helper to show/hide relative/absolute controls
+    function toggleTimeControls(mode) {
+      const rel = document.getElementById('relative-controls');
+      const abs = document.getElementById('absolute-controls');
+      if (rel && abs) {
+        if (mode === 'relative') {
+          rel.style.display = '';
+          abs.style.display = 'none';
+        } else {
+          rel.style.display = 'none';
+          abs.style.display = '';
+        }
+      }
+    }
+
     // Override the updateTimeMode method to handle our specific logic
     this.ui.updateTimeMode = (mode) => {
       if (mode === 'relative') {
         this.currentMode = 'relative';
+        toggleTimeControls('relative');
         this.updateRangeFromPicker();
       } else if (mode === 'absolute') {
         this.currentMode = 'absolute';
+        toggleTimeControls('absolute');
         this.initializeFlatpickr();
       }
     };
 
-    // Set up range picker change handler
+    // Set up range picker change handler (relative mode)
     const rangeInput = document.getElementById('rangePicker');
     if (rangeInput) {
       rangeInput.addEventListener('change', () => this.updateRangeFromPicker());
@@ -126,14 +143,14 @@ class Dashboard {
       return;
     }
 
-    const rangePicker = document.getElementById('rangePicker');
-    if (!rangePicker) return;
+    const absInput = document.getElementById('dateRangePicker');
+    if (!absInput) return;
 
     if (this.flatpickrInstance) {
       this.flatpickrInstance.destroy();
     }
 
-    this.flatpickrInstance = flatpickr(rangePicker, {
+    this.flatpickrInstance = flatpickr(absInput, {
       mode: 'range',
       enableTime: true,
       dateFormat: 'Y-m-d H:i',
@@ -147,12 +164,11 @@ class Dashboard {
         }
       }
     });
-
-    rangePicker.style.display = 'block';
   }
 
   initializeCharts() {
     this.charts.initChart('sensorChart');
+    //this.charts.showNoDataMessage();
   }
 
   initializeStats() {
@@ -279,8 +295,33 @@ class Dashboard {
     }
 
     try {
-      const { start, stop } = timeOptions;
-      
+      let { start, stop } = timeOptions;
+      let xInterval = null;
+
+      // If not absolute, calculate start/stop from currentRange
+      if (!(start && stop) && this.currentRange) {
+        // Parse relative range (e.g., -1h, -7d)
+        const now = new Date();
+        let ms = 0;
+        const match = /^-(\d+)([smhdw])$/.exec(this.currentRange);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          const unit = match[2];
+          switch (unit) {
+            case 's': ms = num * 1000; break;
+            case 'm': ms = num * 60 * 1000; break;
+            case 'h': ms = num * 60 * 60 * 1000; break;
+            case 'd': ms = num * 24 * 60 * 60 * 1000; break;
+            case 'w': ms = num * 7 * 24 * 60 * 60 * 1000; break;
+          }
+          start = new Date(now.getTime() - ms);
+          stop = now;
+          xInterval = { start, stop };
+        }
+      } else if (start && stop) {
+        xInterval = { start, stop };
+      }
+
       const options = {
         buckets: this.ui.selectedBuckets,
         measurements: this.ui.selectedMeasurements,
@@ -290,11 +331,15 @@ class Dashboard {
       };
 
       const result = await this.data.loadSensorData(options);
-      
+
       if (!result.readings || result.readings.length === 0) {
-        this.ui.showNoDataNotification();
+        //this.ui.showNoDataNotification();
         this.charts.showNoDataMessage();
         this.stats.showNoStatsMessage();
+        // Still show empty chart with full interval if possible
+        if (xInterval) {
+          this.charts.renderChart({}, this.ui.measurementDisplayFormatter, xInterval);
+        }
         return;
       }
 
@@ -311,13 +356,13 @@ class Dashboard {
       const processedData = this.data.processReadingsForChart(result.readings, this.ui.selectedMeasurements);
       const statistics = this.data.calculateStatistics(result.readings, this.ui.selectedMeasurements);
 
-      // Render chart and stats
-      this.charts.renderChart(processedData, this.ui.measurementDisplayFormatter);
+      // Render chart and stats, always pass xInterval
+      this.charts.renderChart(processedData, this.ui.measurementDisplayFormatter, xInterval);
       this.stats.renderFullStats(statistics, this.ui.measurementDisplayFormatter);
 
     } catch (error) {
       console.error('Failed to load and render data:', error);
-      this.ui.showNoDataNotification();
+      //this.ui.showNoDataNotification();
       this.charts.showNoDataMessage();
       this.stats.showNoStatsMessage();
     }
