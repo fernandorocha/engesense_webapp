@@ -5,9 +5,10 @@ class DashboardCharts {
   constructor() {
     this.chart = null;
     this.chartContainer = null;
+    // Darker, more visible colors for better contrast
     this.colors = [
-      '#1e88e5', '#e53935', '#43a047', '#fb8c00',
-      '#8e24aa', '#00acc1', '#fdd835', '#f4511e'
+      '#0d47a1', '#b71c1c', '#1b5e20', '#e65100',
+      '#4a148c', '#006064', '#f57f17', '#bf360c'
     ];
   }
 
@@ -150,11 +151,66 @@ class DashboardCharts {
         }
       },
       tooltip: {
-        shared: false,
-        y: {
-          formatter: function (val) {
-            return (val).toFixed(2)
+        shared: true,
+        intersect: false,
+        x: {
+          formatter: function(val) {
+            // Show complete date and time
+            return new Date(val).toLocaleString('en-US', {
+              year: 'numeric',
+              month: '2-digit', 
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: false
+            });
           }
+        },
+        y: {
+          formatter: function (val, opts) {
+            if (val !== null && val !== undefined) {
+              return `${opts.w.globals.seriesNames[opts.seriesIndex]}: ${val.toFixed(2)}`;
+            }
+            return '';
+          }
+        },
+        custom: function({series, seriesIndex, dataPointIndex, w}) {
+          // Get the timestamp for this data point
+          const timestamp = w.globals.seriesX[seriesIndex][dataPointIndex];
+          const formattedDate = new Date(timestamp).toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit', 
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+          });
+          
+          // Build tooltip showing all measurements at this timestamp
+          let tooltipContent = `<div class="apexcharts-tooltip-title">${formattedDate}</div>`;
+          
+          // Show all series values for this timestamp
+          series.forEach((seriesData, index) => {
+            const value = seriesData[dataPointIndex];
+            if (value !== null && value !== undefined) {
+              const color = w.globals.colors[index];
+              tooltipContent += `
+                <div class="apexcharts-tooltip-series-group" style="order: 1; display: flex;">
+                  <span class="apexcharts-tooltip-marker" style="background-color: ${color};"></span>
+                  <div class="apexcharts-tooltip-text" style="font-family: Helvetica, Arial, sans-serif; font-size: 12px;">
+                    <div class="apexcharts-tooltip-y-group">
+                      <span class="apexcharts-tooltip-text-y-label">${w.globals.seriesNames[index]}: </span>
+                      <span class="apexcharts-tooltip-text-y-value">${value.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }
+          });
+          
+          return tooltipContent;
         }
       },
       legend: {
@@ -162,7 +218,7 @@ class DashboardCharts {
         horizontalAlign: 'center'
       },
       stroke: {
-        width: 2,
+        width: 4,
         curve: 'smooth'
       }
     };
